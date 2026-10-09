@@ -1,5 +1,26 @@
 let data, standingsLeague='c', leaderLeague='c', category='avg';
 const $=id=>document.getElementById(id);
+const panels={guide:{title:'Sports Deskの使い方。',description:'知りたい情報へ、迷わず。はじめての方はこちらから。',label:'このサイトの使い方'},baseball:{title:'野球を、もっと楽しもう。',description:'次の一戦も、タイトルの行方も。プロ野球の今をひと目で。',label:'野球'},football:{title:'日本代表の、次の一歩を。',description:'次の代表戦と世界の順位。SAMURAI BLUEを、もっと身近に。',label:'サッカー日本代表'}};
+function showPanel(id){
+ const target=Object.hasOwn(panels,id)?id:'baseball';
+ for(const key of Object.keys(panels)){
+  $(key).hidden=key!==target;
+  const button=$('tab-'+key);button.classList.toggle('active',key===target);button.setAttribute('aria-selected',String(key===target));button.setAttribute('tabindex',key===target?'0':'-1');
+ }
+ $('page-title').textContent=panels[target].title;$('page-description').textContent=panels[target].description;$('breadcrumb-current').textContent=panels[target].label;
+ document.title=panels[target].label+' | Sports Desk';
+}
+function navigatePanel(id){if(!Object.hasOwn(panels,id))return;showPanel(id);if(window.location.hash!=='#'+id)window.history.pushState(null,'','#'+id);window.scrollTo?.({top:0,behavior:'instant'});}
+document.querySelector('.site-tabs').addEventListener('click',event=>{const button=event.target.closest('[data-tab]');if(button)navigatePanel(button.dataset.tab);});
+document.querySelector('.site-tabs').addEventListener('keydown',event=>{
+ const buttons=[...document.querySelectorAll('.site-tabs [data-tab]')];const index=buttons.indexOf(event.target);if(index<0)return;
+ let next;if(event.key==='ArrowDown'||event.key==='ArrowRight')next=(index+1)%buttons.length;else if(event.key==='ArrowUp'||event.key==='ArrowLeft')next=(index+buttons.length-1)%buttons.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=buttons.length-1;else return;
+ event.preventDefault();navigatePanel(buttons[next].dataset.tab);buttons[next].focus();
+});
+document.querySelectorAll('[data-open-tab]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();navigatePanel(link.dataset.openTab);}));
+window.addEventListener('hashchange',()=>{const id=window.location.hash.slice(1);if(id!=='main-content')showPanel(id);});
+window.addEventListener('popstate',()=>{const id=window.location.hash.slice(1);if(id!=='main-content')showPanel(id);});
+showPanel(window.location.hash.slice(1));
 const esc=v=>String(v??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 const number=v=>Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const countryNames={JPN:'日本',ESP:'スペイン',ARG:'アルゼンチン',FRA:'フランス',ENG:'イングランド',BRA:'ブラジル',POR:'ポルトガル',NED:'オランダ',BEL:'ベルギー',GER:'ドイツ',CRO:'クロアチア',MAR:'モロッコ',ITA:'イタリア',COL:'コロンビア',URU:'ウルグアイ',SUI:'スイス',USA:'アメリカ',MEX:'メキシコ',SEN:'セネガル',IRN:'イラン',KOR:'韓国',PAR:'パラグアイ',SCO:'スコットランド'};
