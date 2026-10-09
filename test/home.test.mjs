@@ -40,3 +40,30 @@ test('failed sources and absent qualified players do not become fabricated summa
  const {data,context,$,change}=await setup();change('favorite-team','巨');data.standings.ok=false;data.baseballGames.ok=false;data.leaders.avg.c.data=[];data.leaders.hr.c.ok=false;await vm.runInContext('refresh()',context);
  assert.match($('favorite-summary').textContent,/順位を取得できません/);assert.match($('favorite-summary').textContent,/試合日程を取得できません/);assert.match($('favorite-summary').textContent,/規定条件に該当する選手なし/);assert.match($('favorite-summary').textContent,/取得できませんでした/);assert.match($('home-schedule-note').textContent,/取得成功分のみ/);assert.equal($('today-count').textContent,'0試合');assert.equal($('week-count').textContent,'1試合');
 });
+test('favorite players are marked without filtering other teams and reset immediately',async()=>{
+ const {$,document,change}=await setup();change('favorite-team','巨');assert.equal($('leaders').querySelectorAll('tbody tr').length,2);assert.equal($('leaders').querySelectorAll('.favorite-player').length,1);assert.match($('leaders').querySelector('.favorite-player').textContent,/選手B/);assert.match($('leaders').querySelector('.favorite-player-mark').getAttribute('aria-label'),/応援球団/);$('settings-reset').click();assert.equal($('leaders').querySelectorAll('.favorite-player').length,0);assert.ok(document.querySelector('.stat-help summary'));assert.match(document.querySelector('.stat-help').textContent,/引き分け/);
+});
+test('previous comparison ranks all players, handles corrections and missing baselines',async()=>{
+ const {data,context,$,document}=await setup();
+ data.previous=JSON.parse(JSON.stringify({year:data.year,generatedAt:'2026-12-31T15:00:00Z',standings:data.standings,leaders:data.leaders}));
+ data.previous.standings.data.c.reverse();data.previous.standings.data.c[1].wins='79';
+ data.previous.leaders.hr.c.data=[{name:'選手A',team:'神',league:'c',value:'38'},...Array.from({length:11},(_,i)=>({name:'別選手'+i,team:'神',league:'c',value:String(37-i)})),{name:'選手B',team:'巨',league:'c',value:'19'}];
+ await vm.runInContext('refresh()',context);assert.match($('standings').textContent,/↑ 1位上昇/);assert.match($('standings').textContent,/勝 \+1/);assert.match($('comparison-time').textContent,/前回比の基準/);
+ document.querySelector('[data-category="hr"]').click();assert.match($('leaders').textContent,/↑ 11位上昇/);assert.match($('leaders').textContent,/\+1 本/);
+ data.leaders.hr.c.data[0].value='37';await vm.runInContext('refresh()',context);assert.match($('leaders').textContent,/-1 本/);
+ data.previous.leaders.hr.c.ok=false;await vm.runInContext('refresh()',context);assert.match($('leaders').textContent,/比較なし/);
+ data.previous.year=2026;await vm.runInContext('refresh()',context);assert.match($('comparison-time').textContent,/比較できる前回/);assert.match($('standings').textContent,/比較なし/);
+});
+test('next fixture simulation updates both opponents and handles unknown matches safely',async()=>{
+ const {data,context,$,change}=await setup();data.fifa={ok:true,data:{date:'2026-12-01',rows:[{rank:1,code:'ESP',name:'Spain',points:1700},{rank:2,code:'BRA',name:'Brazil',points:1608},{rank:3,code:'JPN',name:'Japan',points:1600},{rank:4,code:'ARG',name:'Argentina',points:1599}]}};
+ data.footballGames.data=[{date:'2027-01-04',opponent:'アルゼンチン',competition:'予選',status:'scheduled'},{date:'2027-01-02',opponent:'ブラジル',competition:'予選',status:'finished'},{date:'2027-01-03',opponent:'ブラジル',competition:'FIFAワールドカップ予選',status:'scheduled'}];
+ await vm.runInContext('refresh()',context);assert.equal($('simulator').hidden,false);assert.match($('roadmap').textContent,/日本 × ブラジル/);assert.match($('roadmap').textContent,/1月3日/);assert.match($('opponent').textContent,/ブラジル/);assert.equal($('importance').value,'25');
+ change('importance','10');const scenarios=$('simulation').querySelectorAll('.sim-result');assert.match(scenarios[0].textContent,/概算 2位/);assert.match(scenarios[2].textContent,/概算 4位/);assert.match(scenarios[0].textContent,/想定ポイントを超過/);
+ data.footballGames.data[2].competition='大会種別未確定';await vm.runInContext('refresh()',context);assert.equal($('importance').value,'');assert.match($('simulation').textContent,/試合の種類を選ぶ/);
+ data.footballGames.data[2].opponent='未定';await vm.runInContext('refresh()',context);assert.equal($('simulator').hidden,true);assert.match($('roadmap').textContent,/照合できない/);
+ data.footballGames.ok=false;await vm.runInContext('refresh()',context);assert.match($('roadmap').textContent,/日程を取得できない/);
+});
+test('match weighting distinguishes confirmed windows, stages and unknown competitions',async()=>{
+ const {context}=await setup();const importance=(competition,date='2026-11-14')=>vm.runInContext(`matchImportance(${JSON.stringify({competition,date})})`,context);
+ assert.equal(importance('MIZUHO BLUE CHALLENGE'),'10');assert.equal(importance('国際親善試合','2026-11-18'),'5');assert.equal(importance('国際親善試合','2027-03-20'),'');assert.equal(importance('FIFAワールドカップ予選'),'25');assert.equal(importance('AFCアジアカップ グループステージ'),'35');assert.equal(importance('AFCアジアカップ 準々決勝'),'40');assert.equal(importance('FIFAワールドカップ 準々決勝'),'60');assert.equal(importance('FIFAワールドカップ'),'');assert.equal(importance('大会未定'),'');
+});

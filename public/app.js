@@ -24,6 +24,7 @@ showPanel(window.location.hash.slice(1));
 const esc=v=>String(v??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 const number=v=>Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const countryNames={JPN:'日本',ESP:'スペイン',ARG:'アルゼンチン',FRA:'フランス',ENG:'イングランド',BRA:'ブラジル',POR:'ポルトガル',NED:'オランダ',BEL:'ベルギー',GER:'ドイツ',CRO:'クロアチア',MAR:'モロッコ',ITA:'イタリア',COL:'コロンビア',URU:'ウルグアイ',SUI:'スイス',USA:'アメリカ',MEX:'メキシコ',SEN:'セネガル',IRN:'イラン',KOR:'韓国',PAR:'パラグアイ',SCO:'スコットランド'};
+Object.assign(countryNames,{IDN:'インドネシア',THA:'タイ',UZB:'ウズベキスタン',AUS:'オーストラリア',KSA:'サウジアラビア',QAT:'カタール',IRQ:'イラク',JOR:'ヨルダン',CHN:'中国',VIE:'ベトナム',UAE:'アラブ首長国連邦',BHR:'バーレーン',OMA:'オマーン'});
 const name=r=>countryNames[r.code]||r.name;
 const teams={神:'阪神タイガース',巨:'読売ジャイアンツ',デ:'横浜DeNAベイスターズ',広:'広島東洋カープ',ヤ:'東京ヤクルトスワローズ',中:'中日ドラゴンズ',ソ:'福岡ソフトバンクホークス',西:'埼玉西武ライオンズ',日:'北海道日本ハムファイターズ',オ:'オリックス・バファローズ',ロ:'千葉ロッテマリーンズ',楽:'東北楽天ゴールデンイーグルス'};
 const currentDay=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo'}).format(new Date());
@@ -34,16 +35,22 @@ function paintStandings(){
  const source=data.standings;setSource('standings-source',source.source);
  if(!source.ok){$('standings').innerHTML=empty();return;}
  const rows=source.data[standingsLeague];
- $('standings').innerHTML=`<table><thead><tr><th>順位</th><th>チーム</th><th>試合</th><th>勝</th><th>敗</th><th>分</th><th>勝率</th><th>差</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${i+1}</td><td class="team-cell"><span class="team-line"></span>${esc(r.team)}</td><td>${esc(r.games)}</td><td>${esc(r.wins)}</td><td>${esc(r.losses)}</td><td>${esc(r.draws)}</td><td>${esc(r.pct)}</td><td>${esc(r.gap)}</td></tr>`).join('')}</tbody></table>`;
+ $('standings').innerHTML=`<table><thead><tr><th>順位</th><th>チーム</th><th>試合</th><th>勝</th><th>敗</th><th>分</th><th><abbr title="勝利数 ÷（勝利数＋敗戦数）。引き分けは分母に含みません。">勝率</abbr></th><th><abbr title="首位とのゲーム差。一般に勝敗数の差から計算し、0.5ゲーム単位で表示します。">差</abbr></th><th>前回比</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${i+1}</td><td class="team-cell"><span class="team-line"></span>${esc(r.team)}</td><td>${esc(r.games)}</td><td>${esc(r.wins)}</td><td>${esc(r.losses)}</td><td>${esc(r.draws)}</td><td>${esc(r.pct)}</td><td>${esc(r.gap)}</td><td class="change-cell">${standingChange(r,i)}</td></tr>`).join('')}</tbody></table>`;
  document.querySelectorAll('.team-line').forEach((el,i)=>el.setAttribute('data-color',i%6));
 }
+function baseline(){const prev=data.previous;return prev&&prev.year===data.year&&Date.parse(prev.generatedAt)<Date.parse(data.generatedAt)?prev:null;}
+function rankChange(oldRank,newRank){const delta=oldRank-newRank;return delta>0?`↑ ${delta}位上昇`:delta<0?`↓ ${-delta}位下降`:'順位変動なし';}
+function valueChange(value,before,cat){const delta=Number(value)-Number(before);if(Math.abs(delta)<1e-9)return '成績変動なし';const decimals=['avg','obp','pct'].includes(cat.id)?3:cat.id==='era'?2:0;return `${delta>0?'+':''}${delta.toFixed(decimals)}${cat.unit?' '+cat.unit:''}`;}
+function standingChange(row,index){const prev=baseline()?.standings;if(!prev?.ok)return '比較なし';const prior=prev.data[standingsLeague]||[];const oldIndex=prior.findIndex(r=>r.team===row.team);if(oldIndex<0)return '比較なし';const old=prior[oldIndex];const parts=[rankChange(oldIndex+1,index+1)];for(const [key,label] of [['wins','勝'],['losses','敗'],['draws','分']]){const delta=Number(row[key])-Number(old[key]);if(Number.isFinite(delta)&&delta!==0)parts.push(`${label} ${delta>0?'+':''}${delta}`);}return parts.map(esc).join('<br>');}
+function playerChange(row,cat,league,club){const prev=baseline();if(!prev)return '比較なし';const sources=league==='all'?[prev.leaders?.[cat.id]?.c,prev.leaders?.[cat.id]?.p]:[prev.leaders?.[cat.id]?.[league]];if(sources.some(s=>!s?.ok))return '比較なし';const prior=ranked(sources.flatMap(s=>s.data).filter(p=>club==='all'||p.team===club),cat.low,Infinity);const old=prior.find(p=>p.name===row.name&&p.team===row.team&&p.league===row.league);if(!old)return '前回対象なし';return [rankChange(old.rank,row.rank),valueChange(row.value,old.value,cat)].map(esc).join('<br>');}
+function paintComparisonTime(){const prev=baseline();$('comparison-time').textContent=prev?'前回比の基準：'+new Date(prev.generatedAt).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})+' JST（前回の公開データ）。比較元がない項目は「比較なし」。':'前回比：比較できる前回の公開データがありません。次回更新から比較します。';}
 function paintGames(){
  setSource('baseball-source',data.baseballGames.source);
  if(!data.baseballGames.ok){$('baseball-games').innerHTML=empty();return;}
  let games=data.baseballGames.data.filter(g=>g.date>=currentDay()&&g.status==='scheduled');const filter=$('team').value;if(filter!=='all')games=games.filter(g=>g.home===filter||g.away===filter);games=games.slice(0,36);
  $('baseball-games').innerHTML=games.length?games.map(g=>`<div class="game"><div class="game-meta"><span>${date(g.date)}</span><b>${esc(g.time)||'開始時間未定'}</b></div><div class="matchup"><span class="team-mark">${esc(g.home.slice(0,1))}</span>${esc(g.home)}<span class="vs">VS</span>${esc(g.away)}<span class="team-mark">${esc(g.away.slice(0,1))}</span></div><div class="game-venue">${esc(g.venue)}</div></div>`).join(''):empty(filter==='all'?'直近3か月に発表済みの試合はありません。公式日程をご確認ください。':'直近の発表済み日程に、このチームの試合はありません。');
 }
-function ranked(rows,low){let prev,rank=0;return [...rows].sort((a,b)=>low?Number(a.value)-Number(b.value):Number(b.value)-Number(a.value)).map((r,i)=>{if(Number(r.value)!==prev)rank=i+1;prev=Number(r.value);return {...r,rank};}).filter(r=>r.rank<=10);}
+function ranked(rows,low,limit=10){let prev,rank=0;return [...rows].sort((a,b)=>low?Number(a.value)-Number(b.value):Number(b.value)-Number(a.value)).map((r,i)=>{if(Number(r.value)!==prev)rank=i+1;prev=Number(r.value);return {...r,rank};}).filter(r=>r.rank<=limit);}
 function paintLeaders(){
  const club=$('leader-team').value;const effective=club!=='all'?('神巨デ広ヤ中'.includes(club)?'c':'p'):leaderLeague;const cat=data.categories.find(c=>c.id===category);const sources=effective==='all'?[data.leaders[category].c,data.leaders[category].p]:[data.leaders[category][effective]];
  $('leader-source').innerHTML=sources.map((s,i)=>`<a target="_blank" rel="noopener noreferrer" href="${esc(s.source)}">${effective==='all'?(i?'パ':'セ')+'・リーグ出典':'NPB公式出典'} ↗</a>`).join('　');
@@ -53,7 +60,7 @@ function paintLeaders(){
  const allRows=sources.flatMap(s=>s.data);const reference=ranked(allRows,cat.low)[0];
  const rows=ranked(allRows.filter(r=>club==='all'||r.team===club),cat.low);const top=rows[0];if(!top){$('leaders').innerHTML=empty('この球団にランキング対象者はいません。規定条件はリーグ順位と同じです。');$('leader-spotlight').innerHTML=empty('対象者なし');return;}
  $('leader-spotlight').innerHTML=`<div class="leader-kicker">${club==='all'?'LEAGUE LEADER':'TEAM LEADER'} / ${esc(cat.label)}</div><div class="crown">♛</div><h4>${esc(top.name)}</h4><div class="leader-team">${esc(teams[top.team]||top.team)}</div><div class="leader-value">${esc(top.value)}<span>${esc(cat.unit)}</span></div><div class="leader-label">${esc(cat.label)}ランキング 第1位</div>${rows.filter(r=>r.rank===1).length>1?'<p class="note">同率首位の選手がいます</p>':''}`;
- $('leaders').innerHTML=`<table class="leaders-table"><thead><tr><th>順位</th><th>選手</th><th>所属</th><th>リーグ</th><th>${esc(cat.label)}</th><th>${club==='all'?'首位との差':'リーグ首位との差'}</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.rank}</td><td class="team-cell">${esc(r.name)}</td><td>${esc(r.team)}</td><td><span class="league-pill">${r.league==='c'?'セ':'パ'}</span></td><td>${esc(r.value)} <small>${esc(cat.unit)}</small></td><td class="title-gap">${esc(titleGap(r,reference,cat))}</td></tr>`).join('')}</tbody></table>`;
+ $('leaders').innerHTML=`<table class="leaders-table"><thead><tr><th>順位</th><th>選手</th><th>所属</th><th>リーグ</th><th>${esc(cat.label)}</th><th>${club==='all'?'首位との差':'リーグ首位との差'}</th><th>前回比</th></tr></thead><tbody>${rows.map(r=>`<tr class="${r.team===preferences.favorite?'favorite-player':''}"><td>${r.rank}</td><td class="team-cell">${r.team===preferences.favorite?'<span class="favorite-player-mark" aria-label="応援球団の選手">★</span> ':''}${esc(r.name)}</td><td>${esc(r.team)}</td><td><span class="league-pill">${r.league==='c'?'セ':'パ'}</span></td><td>${esc(r.value)} <small>${esc(cat.unit)}</small></td><td class="title-gap">${esc(titleGap(r,reference,cat))}</td><td class="change-cell">${playerChange(r,cat,effective,club)}</td></tr>`).join('')}</tbody></table>`;
 }
 function paintFootball(){
  const s=data.footballGames;setSource('football-source',s.source);
@@ -66,18 +73,44 @@ function paintFifa(){
  const rows=data.fifa.data.rows;const jp=rows.find(r=>r.code==='JPN');const index=rows.indexOf(jp),above=rows[index-1];
  $('fifa-summary').innerHTML=`<div class="fifa-main"><div class="rank-big">${jp.rank}<span>位</span></div><div class="fifa-points"><small>JAPAN / TOTAL POINTS</small><b>${number(jp.points)} <span>pts</span></b><small>前回 ${jp.previousRank}位</small></div></div><div class="fifa-neighbors">${rows.slice(Math.max(0,index-1),index+2).map(r=>`<div class="neighbor ${r.code==='JPN'?'active':''}"><span>${r.rank}</span><span>${esc(name(r))}</span><b>${number(r.points)} <small>pts</small></b></div>`).join('')}</div>`;
  $('fifa-date').textContent='公式発表 '+new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo'}).format(new Date(data.fifa.data.date));
- $('roadmap').innerHTML=above?`<div class="roadmap-content"><div><span class="eyebrow">THE GAP TO NO. ${above.rank}</span><div class="gap-number">${number(above.points-jp.points)}<span>ポイント差</span></div><p>${esc(name(above))}（${above.rank}位）${number(above.points)} pts を上回ることが目標です。</p><div class="gap-track"></div></div><div><h4>勝利を重ねて、上の国とのポイント差を縮める。</h4><p>強い相手に勝つほど獲得ポイントが大きくなります。試合の重要度も加点に影響します。下のシミュレーターで、相手と試合の種類を変えて確認できます。</p><p>上位国のポイントが変わらないと仮定した目安です。</p></div></div>`:'<div class="empty">日本は現在1位です。</div>';
- $('simulator').hidden=false;const prev=$('opponent').value;
- $('opponent').innerHTML=rows.filter(r=>r.code!=='JPN').map(r=>`<option value="${esc(r.code)}">${esc(name(r))} · ${r.rank}位 (${number(r.points)} pts)</option>`).join('');
- $('opponent').value=rows.some(r=>r.code===prev)?prev:(above?.code||rows.find(r=>r.code!=='JPN').code);paintSimulation();
+ paintNextMatchSimulation();
+}
+function nextFootballGame(){return data.footballGames.ok?[...data.footballGames.data].filter(g=>g.date>=currentDay()&&g.status==='scheduled').sort((a,b)=>a.date.localeCompare(b.date))[0]:null;}
+function matchImportance(game){
+ const title=game.competition||'';
+ if(/予選|qualif/i.test(title))return '25';
+ if(/アジアカップ|ASIAN CUP/i.test(title)){if(/準々決勝|準決勝|決勝(?!トーナメント)|quarter|semi|final$/i.test(title))return '40';if(/グループ|ラウンド16|group|round of 16/i.test(title))return '35';return '';}
+ if(/ワールドカップ|WORLD CUP/i.test(title)){if(/準々決勝|準決勝|決勝(?!トーナメント)|quarter|semi|final$/i.test(title))return '60';if(/グループ|ラウンド|group|round of/i.test(title))return '50';return '';}
+ if(/親善|friendly|CHALLENGE|キリンチャレンジ/i.test(title)){
+  // FIFA men's calendar 2026: March 23–31, June 1–9,
+  // September 21–October 6, November 9–17. Other years need confirmation.
+  const windows=[['2026-03-23','2026-03-31'],['2026-06-01','2026-06-09'],['2026-09-21','2026-10-06'],['2026-11-09','2026-11-17']];
+  if(game.date.startsWith('2026-'))return windows.some(([a,b])=>game.date>=a&&game.date<=b)?'10':'5';
+ }
+ return '';
+}
+function matchedOpponent(game,rows){const opponent=game.opponent.replace(/代表$/,'').trim();return rows.find(r=>r.code!=='JPN'&&(name(r)===opponent||r.name===opponent));}
+let simulationGameKey='';
+function paintNextMatchSimulation(){
+ const game=nextFootballGame();$('simulator').hidden=true;
+ if(!game){$('roadmap').innerHTML=empty('次の代表戦が未発表、または日程を取得できないため試算できません。');return;}
+ const opponent=matchedOpponent(game,data.fifa.data.rows);
+ $('roadmap').innerHTML=`<div class="next-simulation-match"><span class="eyebrow">NEXT MATCH / ${date(game.date)}</span><h4>日本 × ${esc(game.opponent)}</h4><p>${esc(game.competition)}</p><p>この試合の勝敗で、日本のポイントと順位がどう変わるかを試算します。</p></div>`;
+ if(!opponent){$('roadmap').innerHTML+=empty('対戦相手のFIFAポイントを照合できないため試算できません。相手未定・非加盟チームの場合も計算できません。');return;}
+ $('simulator').hidden=false;$('opponent').textContent=`${name(opponent)} · ${opponent.rank}位 (${number(opponent.points)} pts)`;
+ const key=game.date+'|'+game.opponent+'|'+game.competition;if(key!==simulationGameKey){$('importance').value=matchImportance(game);simulationGameKey=key;}
+ $('simulation-assumption').textContent=matchImportance(game)?'公式日程の大会名と国際試合カレンダーから試合種別を設定しています。必要に応じて変更できます。':'試合種別・大会ステージを確定できません。公式日程を確認して試合の種類を選んでください。';paintSimulation();
 }
 function paintSimulation(){
- const rows=data.fifa.data.rows;const jp=rows.find(r=>r.code==='JPN');const opponent=rows.find(r=>r.code===$('opponent').value);const above=rows.find(r=>r.rank===jp.rank-1);const importance=Number($('importance').value);const expected=1/(1+10**((opponent.points-jp.points)/600));
- $('simulation').innerHTML=[['勝った場合',1],['引き分け',.5],['負けた場合',0]].map(([label,result])=>{const gain=importance*(result-expected);const points=jp.points+gain;return `<div class="sim-result"><span>${label}</span><b>${gain>=0?'+':''}${number(gain)} pts</b><small>試合後 ${number(points)} pts${above?`<br>${points>above.points?'上位国の現在ポイントを超過':'上位国まで あと '+number(above.points-points)+' pts'}`:''}</small></div>`;}).join('');
+ if(!data?.fifa.ok)return;const game=nextFootballGame();if(!game)return;const rows=data.fifa.data.rows;const jp=rows.find(r=>r.code==='JPN'),opponent=matchedOpponent(game,rows);const importance=Number($('importance').value);
+ if(!opponent||!importance){$('simulation').innerHTML=empty('試合の種類を選ぶと、勝ち・引き分け・負けの場合を表示します。');return;}
+ const above=rows.filter(r=>r.points>jp.points).sort((a,b)=>a.points-b.points)[0];const expected=1/(1+10**((opponent.points-jp.points)/600));
+ $('simulation').innerHTML=[['勝った場合',1],['引き分け',.5],['負けた場合',0]].map(([label,result])=>{const gain=importance*(result-expected),points=jp.points+gain;const projected=1+rows.filter(r=>r.code!=='JPN'&&(r.code===opponent.code?opponent.points-gain:r.points)>points).length;const target=above?.code===opponent.code?above.points-gain:above?.points;return `<div class="sim-result"><span>${label}</span><b>${gain>=0?'+':''}${number(gain)} pts</b><strong class="projected-rank">概算 ${projected}位</strong><small>試合後 ${number(points)} pts${above?`<br>${points>target?name(above)+'の想定ポイントを超過':points===target?name(above)+'と同ポイント':name(above)+'まで '+number(target-points)+' pts差'}`:''}</small></div>`;}).join('');
 }
+
 function tabs(id,set){$(id).addEventListener('click',e=>{const b=e.target.closest('button[data-league]');if(!b||!data)return;$(id).querySelectorAll('button').forEach(el=>{el.classList.toggle('selected',el===b);el.setAttribute('aria-pressed',String(el===b));});set(b.dataset.league);});}
 tabs('standings-tabs',league=>{standingsLeague=league;paintStandings();});tabs('leader-tabs',league=>{leaderLeague=league;$('leader-team').value='all';paintLeaders();});
-$('team').addEventListener('change',()=>{if(data)paintGames();});$('opponent').addEventListener('change',paintSimulation);$('importance').addEventListener('change',paintSimulation);
+$('team').addEventListener('change',()=>{if(data)paintGames();});$('importance').addEventListener('change',paintSimulation);
 const scheduleTeams={神:'阪神',巨:'巨人',デ:'DeNA',広:'広島',ヤ:'ヤクルト',中:'中日',ソ:'ソフトバンク',西:'西武',日:'日本ハム',オ:'オリックス',ロ:'ロッテ',楽:'楽天'};
 const themes={lavender:'ラベンダー',blue:'ブルー',green:'グリーン',coral:'コーラル',amber:'アンバー'};
 const settingsKey='sports-desk-preferences-v1';let preferences={theme:'lavender',favorite:'all'};
@@ -89,7 +122,7 @@ const clubOptions='<option value="all">すべての球団</option>'+Object.entri
 $('favorite-team').innerHTML=clubOptions.replace('すべての球団','未設定');$('favorite-team').value=preferences.favorite;$('leader-team').innerHTML=clubOptions;
 applyTheme();
 $('theme-options').addEventListener('click',e=>{const b=e.target.closest('[data-theme-choice]');if(!b)return;preferences.theme=b.dataset.themeChoice;applyTheme();savePreferences();});
-function applyFavorite(){const code=preferences.favorite;const value=scheduleTeams[code]||'all';if([...$('team').options].some(o=>o.value===value))$('team').value=value;else $('team').value='all';if(data){paintGames();paintCalendar();paintHome();}}
+function applyFavorite(){const code=preferences.favorite;const value=scheduleTeams[code]||'all';if([...$('team').options].some(o=>o.value===value))$('team').value=value;else $('team').value='all';if(data){paintGames();paintCalendar();paintHome();paintLeaders();paintStandings();}}
 $('favorite-team').addEventListener('change',()=>{preferences.favorite=$('favorite-team').value;savePreferences();applyFavorite();});
 $('settings-reset').addEventListener('click',()=>{preferences={theme:'lavender',favorite:'all'};$('favorite-team').value='all';applyTheme();applyFavorite();savePreferences();});
 $('leader-team').addEventListener('change',()=>{const club=$('leader-team').value;if(club!=='all'){leaderLeague='神巨デ広ヤ中'.includes(club)?'c':'p';$('leader-tabs').querySelectorAll('button').forEach(b=>{const chosen=b.dataset.league===leaderLeague;b.classList.toggle('selected',chosen);b.setAttribute('aria-pressed',String(chosen));});}if(data)paintLeaders();});
@@ -143,7 +176,7 @@ let loading=false,dataInitialized=false;async function refresh(){
  $('season').textContent=data.year;
  const teamBefore=$('team').value;$('team').innerHTML='<option value="all">すべてのチーム</option>'+Object.entries(scheduleTeams).map(([key,t])=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');$('team').value=[...$('team').options].some(o=>o.value===teamBefore)?teamBefore:'all';if(!dataInitialized){applyFavorite();dataInitialized=true;}
  $('categories').innerHTML=data.categories.map(c=>`<button data-category="${c.id}" class="${category===c.id?'selected':''}" aria-pressed="${category===c.id}">${esc(c.label)}</button>`).join('');
- paintStandings();paintGames();paintLeaders();paintFootball();paintFifa();paintCalendar();paintHome();paintNews();paintTimes();
+ paintStandings();paintGames();paintLeaders();paintFootball();paintFifa();paintCalendar();paintHome();paintNews();paintTimes();paintComparisonTime();
  const failed=[data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews].filter(Boolean),...Object.values(data.leaders).flatMap(x=>[x.c,x.p])].filter(s=>!s.ok).length;
  const generated=new Date(data.generatedAt);const stale=Date.now()-generated.getTime()>7200000;
  $('status').classList.toggle('error',!!failed||stale);$('status').textContent=failed?`一部の公式データを取得できませんでした（${failed}件）。各欄の出典をご確認ください。`:stale?'表示中のデータは2時間以上前のものです。自動更新が遅れている可能性があります。出典をご確認ください。':'公式ソースから取得 · 毎時自動更新予定 · 試合速報ではありません';
