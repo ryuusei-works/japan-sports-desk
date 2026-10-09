@@ -1,11 +1,11 @@
 let data, standingsLeague='c', leaderLeague='c', category='avg';
 const $=id=>document.getElementById(id);
-const panels={home:{title:'今日のスポーツを、ひと目で。',description:'野球と日本代表の試合を、ひとつのカレンダーに。',label:'ホーム'},settings:{title:'あなた好みの、観戦スペース。',description:'好きな色と応援球団で、毎日のチェックをもっと楽しく。',label:'設定'},guide:{title:'Sports Deskの使い方。',description:'知りたい情報へ、迷わず。はじめての方はこちらから。',label:'このサイトの使い方'},baseball:{title:'野球を、もっと楽しもう。',description:'次の一戦も、タイトルの行方も。プロ野球の今をひと目で。',label:'野球'},football:{title:'日本代表の、次の一歩を。',description:'次の代表戦と世界の順位。SAMURAI BLUEを、もっと身近に。',label:'サッカー日本代表'}};
+const panels={home:{title:'今日のスポーツを、ひと目で。',description:'野球と日本代表の試合を、ひとつのカレンダーに。',label:'ホーム'},settings:{title:'あなた好みの、観戦スペース。',description:'好きな色と応援球団で、毎日のチェックをもっと楽しく。',label:'設定'},guide:{title:'Sports Deskの使い方。',description:'知りたい情報へ、迷わず。はじめての方はこちらから。',label:'使い方・更新について'},baseball:{title:'野球を、もっと楽しもう。',description:'次の一戦も、タイトルの行方も。プロ野球の今をひと目で。',label:'野球'},football:{title:'日本代表の、次の一歩を。',description:'次の代表戦と世界の順位。SAMURAI BLUEを、もっと身近に。',label:'サッカー日本代表'}};
 function showPanel(id){
  const target=Object.hasOwn(panels,id)?id:'home';
  for(const key of Object.keys(panels)){
   $(key).hidden=key!==target;
-  const button=$('tab-'+key);button.classList.toggle('active',key===target);button.setAttribute('aria-selected',String(key===target));button.setAttribute('tabindex',key===target?'0':'-1');
+  const button=$('tab-'+key);if(!button)continue;button.classList.toggle('active',key===target);button.setAttribute('aria-selected',String(key===target));button.setAttribute('tabindex',key===target?'0':'-1');
  }
  $('page-title').textContent=panels[target].title;$('page-description').textContent=panels[target].description;$('breadcrumb-current').textContent=panels[target].label;
  document.title=panels[target].label+' | Sports Desk';

@@ -15,7 +15,7 @@ vm.runInContext(await readFile('public/app.js','utf8'),context);
 await new Promise(r=>setTimeout(r,30));
 const $=id=>document.getElementById(id);
 assert.equal($('home').hidden,false);assert.equal($('baseball').hidden,true);assert.equal($('football').hidden,true);assert.equal($('guide').hidden,true);
-$('tab-guide').click();assert.equal($('guide').hidden,false);assert.equal($('baseball').hidden,true);assert.equal($('tab-guide').getAttribute('aria-selected'),'true');
+document.querySelector('.sidebar-help').click();assert.equal($('guide').hidden,false);assert.equal($('baseball').hidden,true);assert.equal($('tab-guide'),null);
 document.querySelector('#guide [data-open-tab="football"]').click();assert.equal($('football').hidden,false);assert.equal($('guide').hidden,true);assert.equal(window.location.hash,'#football');
 $('tab-baseball').click();assert.equal($('baseball').hidden,false);
 assert.match($('standings').textContent,/阪神/);
