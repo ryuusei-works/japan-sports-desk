@@ -5,6 +5,7 @@ const number=v=>Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximu
 const countryNames={JPN:'日本',ESP:'スペイン',ARG:'アルゼンチン',FRA:'フランス',ENG:'イングランド',BRA:'ブラジル',POR:'ポルトガル',NED:'オランダ',BEL:'ベルギー',GER:'ドイツ',CRO:'クロアチア',MAR:'モロッコ',ITA:'イタリア',COL:'コロンビア',URU:'ウルグアイ',SUI:'スイス',USA:'アメリカ',MEX:'メキシコ',SEN:'セネガル',IRN:'イラン',KOR:'韓国',PAR:'パラグアイ',SCO:'スコットランド'};
 const name=r=>countryNames[r.code]||r.name;
 const teams={神:'阪神タイガース',巨:'読売ジャイアンツ',デ:'横浜DeNAベイスターズ',広:'広島東洋カープ',ヤ:'東京ヤクルトスワローズ',中:'中日ドラゴンズ',ソ:'福岡ソフトバンクホークス',西:'埼玉西武ライオンズ',日:'北海道日本ハムファイターズ',オ:'オリックス・バファローズ',ロ:'千葉ロッテマリーンズ',楽:'東北楽天ゴールデンイーグルス'};
+const currentDay=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo'}).format(new Date());
 const date=v=>new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'long',day:'numeric',weekday:'short'}).format(new Date(v+'T00:00:00+09:00'));
 const empty=(message='公式データを取得できませんでした。時間をおいて再確認してください。')=>`<div class="empty">${esc(message)}</div>`;
 function setSource(id,url){$(id).href=url;}
@@ -18,7 +19,7 @@ function paintStandings(){
 function paintGames(){
  setSource('baseball-source',data.baseballGames.source);
  if(!data.baseballGames.ok){$('baseball-games').innerHTML=empty();return;}
- let games=data.baseballGames.data;const filter=$('team').value;if(filter!=='all')games=games.filter(g=>g.home===filter||g.away===filter);
+ let games=data.baseballGames.data.filter(g=>g.date>=currentDay());const filter=$('team').value;if(filter!=='all')games=games.filter(g=>g.home===filter||g.away===filter);
  $('baseball-games').innerHTML=games.length?games.map(g=>`<div class="game"><div class="game-meta"><span>${date(g.date)}</span><b>${esc(g.time)||'開始時間未定'}</b></div><div class="matchup"><span class="team-mark">${esc(g.home.slice(0,1))}</span>${esc(g.home)}<span class="vs">VS</span>${esc(g.away)}<span class="team-mark">${esc(g.away.slice(0,1))}</span></div><div class="game-venue">${esc(g.venue)}</div></div>`).join(''):empty(filter==='all'?'直近3か月に発表済みの試合はありません。公式日程をご確認ください。':'直近の発表済み日程に、このチームの試合はありません。');
 }
 function ranked(rows,low){let prev,rank=0;return [...rows].sort((a,b)=>low?Number(a.value)-Number(b.value):Number(b.value)-Number(a.value)).map((r,i)=>{if(Number(r.value)!==prev)rank=i+1;prev=Number(r.value);return {...r,rank};}).filter(r=>r.rank<=10);}
@@ -34,7 +35,7 @@ function paintLeaders(){
 function paintFootball(){
  const s=data.footballGames;setSource('football-source',s.source);
  if(!s.ok){$('football-game').innerHTML=empty();return;}
- const g=s.data[0];if(!g){$('football-game').innerHTML=empty('次の代表戦はまだ発表されていません。');return;}
+ const g=s.data.find(g=>g.date>=currentDay());if(!g){$('football-game').innerHTML=empty('取得済みのデータに次の代表戦はありません。公式日程をご確認ください。');return;}
  $('football-game').innerHTML=`<div class="football-match-content"><div class="competition">${esc(g.competition)}</div><div class="football-date">${date(g.date)}</div><div class="national-matchup"><div><div class="japan-flag"></div><strong>日本</strong></div><span>VS</span><div><div class="flag">⚽</div><strong>${esc(g.opponent)}</strong></div></div><div class="kickoff">キックオフ ${g.time?esc(g.time)+'（日本時間）':'時刻は公式詳細をご確認ください'}</div><div class="football-venue">${esc(g.venue)}</div></div>`;setSource('football-source',g.url);
 }
 function paintFifa(){
@@ -55,16 +56,16 @@ function tabs(id,set){$(id).addEventListener('click',e=>{const b=e.target.closes
 tabs('standings-tabs',league=>{standingsLeague=league;paintStandings();});tabs('leader-tabs',league=>{leaderLeague=league;paintLeaders();});
 $('team').addEventListener('change',()=>{if(data)paintGames();});$('opponent').addEventListener('change',paintSimulation);$('importance').addEventListener('change',paintSimulation);
 let loading=false;async function refresh(){
- if(loading)return;loading=true;$('refresh').disabled=true;$('status').textContent='公式データを確認しています…';
- try{const response=await fetch('/api/sports',{signal:AbortSignal.timeout(60000)});if(!response.ok)throw Error('データ取得エラー');data=await response.json();
- $('today').textContent=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).format(new Date(data.today+'T00:00:00+09:00'));
+ if(loading)return;loading=true;$('refresh').disabled=true;$('status').textContent='公開済みのデータを確認しています…';
+ try{const response=await fetch('./data/sports.json',{cache:'no-cache',signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error('データ取得エラー');data=await response.json();
+ $('today').textContent=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).format(new Date());
  $('season').textContent=data.year;
  const teamBefore=$('team').value;$('team').innerHTML='<option value="all">すべてのチーム</option>'+[...new Set(data.baseballGames.ok?data.baseballGames.data.flatMap(g=>[g.home,g.away]):[])].map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');$('team').value=[...$('team').options].some(o=>o.value===teamBefore)?teamBefore:'all';
  $('categories').innerHTML=data.categories.map(c=>`<button data-category="${c.id}" class="${category===c.id?'selected':''}" aria-pressed="${category===c.id}">${esc(c.label)}</button>`).join('');
  paintStandings();paintGames();paintLeaders();paintFootball();paintFifa();
  const failed=[data.standings,data.baseballGames,data.footballGames,data.fifa,...Object.values(data.leaders).flatMap(x=>[x.c,x.p])].filter(s=>!s.ok).length;
  const generated=new Date(data.generatedAt);const stale=Date.now()-generated.getTime()>7200000;
- $('status').classList.toggle('error',!!failed||stale);$('status').textContent=failed?`一部の公式データを取得できませんでした（${failed}件）。各欄の出典をご確認ください。`:stale?'表示中のデータは2時間以上前に取得したものです。再確認してください。':'公式ソースから取得 · 1時間キャッシュ · 試合速報ではありません';
+ $('status').classList.toggle('error',!!failed||stale);$('status').textContent=failed?`一部の公式データを取得できませんでした（${failed}件）。各欄の出典をご確認ください。`:stale?'表示中のデータは2時間以上前のものです。自動更新が遅れている可能性があります。出典をご確認ください。':'公式ソースから取得 · 毎時自動更新予定 · 試合速報ではありません';
  $('fetched-at').textContent='取得日時：'+generated.toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})+'（日本時間）';
  }catch{$('status').classList.add('error');$('status').textContent=data?'更新に失敗しました。表示中は前回取得のデータです。出典をご確認ください。':'データを取得できませんでした。「データを再確認」から再試行してください。';if(!data)for(const id of ['standings','baseball-games','leaders','football-game','fifa-summary','roadmap'])$(id).innerHTML=empty();}
  finally{loading=false;$('refresh').disabled=false;}
