@@ -48,11 +48,12 @@ function paintLeaders(){
  const club=$('leader-team').value;const effective=club!=='all'?('神巨デ広ヤ中'.includes(club)?'c':'p'):leaderLeague;const cat=data.categories.find(c=>c.id===category);const sources=effective==='all'?[data.leaders[category].c,data.leaders[category].p]:[data.leaders[category][effective]];
  $('leader-source').innerHTML=sources.map((s,i)=>`<a target="_blank" rel="noopener noreferrer" href="${esc(s.source)}">${effective==='all'?(i?'パ':'セ')+'・リーグ出典':'NPB公式出典'} ↗</a>`).join('　');
  $('leader-time').textContent=sources.map(s=>stamp(s)).join(' / ');
- $('leader-note').textContent=[club!=='all'?'球団内の独自順位（公式タイトルではありません）':leaderLeague==='all'?'セパ総合・独自集計':'リーグ順位',cat.note||'NPB公式成績',club==='all'&&effective==='all'?'セパ総合は独自集計（公式タイトルではありません）':'同順位は同じ順位で表示'].join(' · ');
+ $('leader-note').textContent=[club!=='all'?'球団内の独自順位（公式タイトルではありません）':leaderLeague==='all'?'セパ総合・独自集計':'リーグ順位',cat.note||'NPB公式成績',club==='all'&&effective==='all'?'セパ総合は独自集計（公式タイトルではありません）':'同順位は同じ順位で表示'].join(' · ')+' · 差は現在の成績差（同率首位まで）。打率などは必要な安打数ではありません。';
  if(sources.some(s=>!s.ok)){$('leaders').innerHTML=empty();$('leader-spotlight').innerHTML=empty('ランキングを確認できません');return;}
- const rows=ranked(sources.flatMap(s=>s.data).filter(r=>club==='all'||r.team===club),cat.low);const top=rows[0];if(!top){$('leaders').innerHTML=empty('この球団にランキング対象者はいません。規定条件はリーグ順位と同じです。');$('leader-spotlight').innerHTML=empty('対象者なし');return;}
+ const allRows=sources.flatMap(s=>s.data);const reference=ranked(allRows,cat.low)[0];
+ const rows=ranked(allRows.filter(r=>club==='all'||r.team===club),cat.low);const top=rows[0];if(!top){$('leaders').innerHTML=empty('この球団にランキング対象者はいません。規定条件はリーグ順位と同じです。');$('leader-spotlight').innerHTML=empty('対象者なし');return;}
  $('leader-spotlight').innerHTML=`<div class="leader-kicker">${club==='all'?'LEAGUE LEADER':'TEAM LEADER'} / ${esc(cat.label)}</div><div class="crown">♛</div><h4>${esc(top.name)}</h4><div class="leader-team">${esc(teams[top.team]||top.team)}</div><div class="leader-value">${esc(top.value)}<span>${esc(cat.unit)}</span></div><div class="leader-label">${esc(cat.label)}ランキング 第1位</div>${rows.filter(r=>r.rank===1).length>1?'<p class="note">同率首位の選手がいます</p>':''}`;
- $('leaders').innerHTML=`<table class="leaders-table"><thead><tr><th>順位</th><th>選手</th><th>所属</th><th>リーグ</th><th>${esc(cat.label)}</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.rank}</td><td class="team-cell">${esc(r.name)}</td><td>${esc(r.team)}</td><td><span class="league-pill">${r.league==='c'?'セ':'パ'}</span></td><td>${esc(r.value)} <small>${esc(cat.unit)}</small></td></tr>`).join('')}</tbody></table>`;
+ $('leaders').innerHTML=`<table class="leaders-table"><thead><tr><th>順位</th><th>選手</th><th>所属</th><th>リーグ</th><th>${esc(cat.label)}</th><th>${club==='all'?'首位との差':'リーグ首位との差'}</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.rank}</td><td class="team-cell">${esc(r.name)}</td><td>${esc(r.team)}</td><td><span class="league-pill">${r.league==='c'?'セ':'パ'}</span></td><td>${esc(r.value)} <small>${esc(cat.unit)}</small></td><td class="title-gap">${esc(titleGap(r,reference,cat))}</td></tr>`).join('')}</tbody></table>`;
 }
 function paintFootball(){
  const s=data.footballGames;setSource('football-source',s.source);
@@ -88,25 +89,49 @@ const clubOptions='<option value="all">すべての球団</option>'+Object.entri
 $('favorite-team').innerHTML=clubOptions.replace('すべての球団','未設定');$('favorite-team').value=preferences.favorite;$('leader-team').innerHTML=clubOptions;
 applyTheme();
 $('theme-options').addEventListener('click',e=>{const b=e.target.closest('[data-theme-choice]');if(!b)return;preferences.theme=b.dataset.themeChoice;applyTheme();savePreferences();});
-function applyFavorite(){const code=preferences.favorite;const value=scheduleTeams[code]||'all';if([...$('team').options].some(o=>o.value===value))$('team').value=value;else $('team').value='all';if(data){paintGames();paintCalendar();}}
+function applyFavorite(){const code=preferences.favorite;const value=scheduleTeams[code]||'all';if([...$('team').options].some(o=>o.value===value))$('team').value=value;else $('team').value='all';if(data){paintGames();paintCalendar();paintHome();}}
 $('favorite-team').addEventListener('change',()=>{preferences.favorite=$('favorite-team').value;savePreferences();applyFavorite();});
 $('settings-reset').addEventListener('click',()=>{preferences={theme:'lavender',favorite:'all'};$('favorite-team').value='all';applyTheme();applyFavorite();savePreferences();});
 $('leader-team').addEventListener('change',()=>{const club=$('leader-team').value;if(club!=='all'){leaderLeague='神巨デ広ヤ中'.includes(club)?'c':'p';$('leader-tabs').querySelectorAll('button').forEach(b=>{const chosen=b.dataset.league===leaderLeague;b.classList.toggle('selected',chosen);b.setAttribute('aria-pressed',String(chosen));});}if(data)paintLeaders();});
 const stamp=s=>s?.ok&&s.fetchedAt?'取得：'+new Date(s.fetchedAt).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})+' JST':'取得できませんでした';
 function paintTimes(){document.querySelectorAll('[data-time]').forEach(el=>{el.textContent=stamp(data[el.dataset.time]);});}
 function paintNews(){for(const sport of ['baseball','football']){const source=data[sport+'News'];$(sport+'-news').innerHTML=source?.ok?source.data.map(n=>`<a class="news-item" href="${esc(n.url)}" target="_blank" rel="noopener noreferrer"><time>${esc(n.date)}</time><span>${esc(n.title)}</span><b aria-hidden="true">↗</b></a>`).join(''):empty('ニュースを取得できませんでした。公式サイトをご確認ください。');}}
-let calendarMonth=currentDay().slice(0,7),selectedDay=currentDay();
+let calendarMonth=currentDay().slice(0,7),selectedDay=currentDay(),calendarFilter='all';
 function calendarEvents(){return [...(data.baseballGames.ok?data.baseballGames.data.map(g=>({...g,sport:'baseball'})):[]),...(data.footballGames.ok?data.footballGames.data.map(g=>({...g,sport:'football'})):[])];}
 function isFavorite(g){return preferences.favorite!=='all'&&(g.home===scheduleTeams[preferences.favorite]||g.away===scheduleTeams[preferences.favorite]);}
 function eventLabel(g){return g.sport==='baseball'?`${g.home} × ${g.away}`:`日本 × ${g.opponent}`;}
 function paintCalendar(){
- if(!data)return;const [y,m]=calendarMonth.split('-').map(Number);const offset=new Date(Date.UTC(y,m-1,1)).getUTCDay(),count=new Date(Date.UTC(y,m,0)).getUTCDate();const events=calendarEvents();
+ if(!data)return;const [y,m]=calendarMonth.split('-').map(Number);const offset=new Date(Date.UTC(y,m-1,1)).getUTCDay(),count=new Date(Date.UTC(y,m,0)).getUTCDate();const events=filteredCalendarEvents();
+ $('calendar-filter-note').textContent=calendarFilter==='favorite'?(preferences.favorite==='all'?'設定で応援球団を選ぶと、その球団の試合を表示します。':teams[preferences.favorite]+'の試合だけを表示しています。'):'';
  $('calendar-month').textContent=`${y}年${m}月`;
- $('calendar-coverage').textContent=`野球：${data.today.slice(0,7)}から3か月分の公表済み日程。サッカー：${data.year}年の公式日程（翌年分の掲載を含む）。空欄は取得範囲内に試合の掲載がない日です。${!data.baseballGames.ok||!data.footballGames.ok?'一部の日程を取得できていません。公式日程をご確認ください。':''}`;
+ $('calendar-coverage').textContent=`野球：取得月（${data.today.slice(0,7)}）の前月〜翌々月の公表済み日程。サッカー：${data.year}年の公式日程（翌年分の掲載を含む）。空欄は表示対象の試合が取得済み日程にない日です。${!data.baseballGames.ok||!data.footballGames.ok?'一部の日程を取得できていません。公式日程をご確認ください。':''}`;
  const out=['日','月','火','水','木','金','土'].map(d=>`<div class="weekday">${d}</div>`);for(let i=0;i<offset;i++)out.push('<div class="calendar-blank"></div>');
  for(let n=1;n<=count;n++){const day=`${calendarMonth}-${String(n).padStart(2,'0')}`,games=events.filter(g=>g.date===day);out.push(`<button class="calendar-day ${day===currentDay()?'today':''} ${day===selectedDay?'chosen':''}" data-day="${day}" aria-pressed="${day===selectedDay}" aria-label="${day}、${games.length}試合"><span class="day-number">${n}</span>${games.slice(0,3).map(g=>`<span class="calendar-event ${g.sport} ${isFavorite(g)?'favorite':''}">${g.sport==='baseball'?'⚾':'⚽'} ${isFavorite(g)?'★ ':''}${esc(eventLabel(g))}</span>`).join('')}${games.length>3?`<span class="more-games">ほか${games.length-3}試合</span>`:''}</button>`);}
  $('calendar').innerHTML=out.join('');$('day-title').textContent=date(selectedDay)+'の試合';const games=events.filter(g=>g.date===selectedDay);
- $('day-games').innerHTML=games.length?games.map(g=>`<div class="calendar-detail-game ${g.sport}"><b>${g.sport==='baseball'?'⚾':'⚽'} ${isFavorite(g)?'★ ':''}${esc(eventLabel(g))}</b><span>${g.status==='finished'?'終了':g.status==='cancelled'?'中止・延期':esc(g.time)||'開始時刻は公式で確認'} · ${esc(g.venue)}</span></div>`).join(''):empty('取得済みの日程に、この日の試合はありません。未発表・取得範囲外の日程は公式サイトをご確認ください。');
+ $('day-games').innerHTML=games.length?games.map(g=>`<div class="calendar-detail-game ${g.sport}"><b>${g.sport==='baseball'?'⚾':'⚽'} ${isFavorite(g)?'★ ':''}${esc(eventLabel(g))}</b><span>${g.status==='finished'?'終了':g.status==='cancelled'?'中止・延期':esc(g.time)||'開始時刻は公式で確認'} · ${esc(g.venue)}</span></div>`).join(''):empty('表示対象の試合は取得済みの日程にありません。未発表・取得範囲外の日程は公式サイトをご確認ください。');
+}
+function filteredCalendarEvents(){return calendarEvents().filter(g=>calendarFilter==='all'||calendarFilter==='favorite'&&isFavorite(g)||g.sport===calendarFilter);}
+$('calendar-filters').addEventListener('click',e=>{const b=e.target.closest('[data-calendar-filter]');if(!b)return;calendarFilter=b.dataset.calendarFilter;$('calendar-filters').querySelectorAll('button').forEach(el=>{const chosen=el===b;el.classList.toggle('selected',chosen);el.setAttribute('aria-pressed',String(chosen));});paintCalendar();});
+function shiftDay(day,offset){const d=new Date(day+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+offset);return d.toISOString().slice(0,10);}
+function weekRange(today=currentDay()){const day=new Date(today+'T00:00:00Z').getUTCDay(),start=shiftDay(today,-((day+6)%7));return {start,end:shiftDay(start,6)};}
+function gameState(g){return g.status==='finished'?'終了':g.status==='cancelled'?'中止・延期':g.time?g.time+' 予定':'開始時刻は公式で確認';}
+function homeGames(games){return games.map(g=>`<div class="home-game ${g.sport}"><div><span class="home-game-date">${date(g.date)} · ${g.sport==='baseball'?'⚾ 野球':'⚽ 日本代表'}</span><b>${isFavorite(g)?'★ ':''}${esc(eventLabel(g))}</b><small>${esc(g.venue)}</small></div><span class="home-game-state">${esc(gameState(g))}</span></div>`).join('');}
+function titleGap(player,top,cat){const difference=Math.abs(Number(player.value)-Number(top.value));if(difference<1e-9)return '首位（差なし）';const decimals=['avg','obp','pct'].includes(cat.id)?3:cat.id==='era'?2:0;return difference.toFixed(decimals)+(cat.unit?' '+cat.unit:'');}
+function paintHome(){
+ if(!data)return;const today=currentDay(),week=weekRange(today);const events=calendarEvents().sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'99:99').localeCompare(b.time||'99:99'));
+ for(const [key,games] of [['today',events.filter(g=>g.date===today)],['week',events.filter(g=>g.date>=week.start&&g.date<=week.end)]]){$(key+'-count').textContent=games.length+'試合';$(key+'-games').innerHTML=games.length?homeGames(games):empty('取得済みの日程に試合の掲載はありません。');}
+ $('today-range').textContent=date(today);$('week-range').textContent=`${date(week.start)} 〜 ${date(week.end)}`;
+ $('home-schedule-note').textContent='日本時間 · 今週は月曜〜日曜（終了・中止を含む）。公表済み・取得範囲内の日程を表示します。試合速報ではありません。'+(!data.baseballGames.ok||!data.footballGames.ok?' 一部の日程を取得できていないため、試合数は取得成功分のみです。':'');
+ paintFavoriteSummary();
+}
+function paintFavoriteSummary(){
+ const club=preferences.favorite;$('favorite-heading').textContent=club==='all'?'応援球団のまとめ':teams[club];
+ if(club==='all'){$('favorite-summary').innerHTML=empty('応援球団を設定すると、次の試合・順位・球団のトップ選手をまとめて確認できます。');return;}
+ const league='神巨デ広ヤ中'.includes(club)?'c':'p';const standings=data.standings;const rows=standings.ok?standings.data[league]:[];const index=rows.findIndex(r=>r.team===teams[club]);const row=rows[index];
+ const games=data.baseballGames;const next=games.ok?[...games.data].filter(g=>g.date>=currentDay()&&g.status==='scheduled'&&isFavorite(g)).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'99:99').localeCompare(b.time||'99:99'))[0]:null;
+ const rankText=row?`${league==='c'?'セ':'パ'}・リーグ ${index+1}位`:'順位を取得できませんでした';const gap=row?(index===0?'首位':/^\d+(?:\.\d+)?$/.test(row.gap)?`首位と ${row.gap} ゲーム差`:'首位との差は公式順位をご確認ください'):'公式順位をご確認ください';
+ const major=['avg','hr','rbi','w','era','so'].map(id=>{const cat=data.categories.find(c=>c.id===id),source=data.leaders[id]?.[league];const leaders=source?.ok?ranked(source.data.filter(r=>r.team===club),cat.low).filter(r=>r.rank===1):[];return `<div class="favorite-stat"><span>${esc(cat.label)}</span>${leaders.length?`<b>${leaders.map(r=>esc(r.name)).join(' / ')}</b><strong>${esc(leaders[0].value)} <small>${esc(cat.unit)}</small></strong>`:`<p>${source?.ok?'規定条件に該当する選手なし':'取得できませんでした'}</p>`}</div>`;}).join('');
+ $('favorite-summary').innerHTML=`<div class="favorite-overview"><div><span class="eyebrow">LEAGUE STANDING</span><h4>${esc(rankText)}</h4><p>${esc(gap)}</p>${row?`<small>${esc(row.wins)}勝 ${esc(row.losses)}敗 ${esc(row.draws)}分 · 勝率 ${esc(row.pct)}</small>`:''}</div><div><span class="eyebrow">NEXT GAME</span>${next?`<h4>${esc(eventLabel({...next,sport:"baseball"}))}</h4><p>${date(next.date)} · ${esc(next.time)||'開始時刻未定'}</p><small>${esc(next.venue)}</small>`:`<p>${games.ok?'取得範囲内に次の発表済み試合はありません。':'試合日程を取得できませんでした。'}</p>`}</div></div><h4 class="favorite-stats-heading">球団のトップ選手 <small>レギュラーシーズン</small></h4><div class="favorite-stats">${major}</div><p class="home-note favorite-note">NPB掲載の対象者から集計。同率トップは全員表示。打率・防御率は規定対象者です。</p><p class="source-time">主要6部門 ${['avg','hr','rbi','w','era','so'].map(id=>`${data.categories.find(c=>c.id===id).label} ${stamp(data.leaders[id]?.[league])}`).map(esc).join(' / ')}</p>`;
 }
 $('calendar').addEventListener('click',e=>{const b=e.target.closest('[data-day]');if(b){selectedDay=b.dataset.day;paintCalendar();}});
 function moveMonth(delta){const [y,m]=calendarMonth.split('-').map(Number);calendarMonth=new Date(Date.UTC(y,m-1+delta,1)).toISOString().slice(0,7);selectedDay=calendarMonth+'-01';paintCalendar();}
@@ -118,12 +143,12 @@ let loading=false,dataInitialized=false;async function refresh(){
  $('season').textContent=data.year;
  const teamBefore=$('team').value;$('team').innerHTML='<option value="all">すべてのチーム</option>'+Object.entries(scheduleTeams).map(([key,t])=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');$('team').value=[...$('team').options].some(o=>o.value===teamBefore)?teamBefore:'all';if(!dataInitialized){applyFavorite();dataInitialized=true;}
  $('categories').innerHTML=data.categories.map(c=>`<button data-category="${c.id}" class="${category===c.id?'selected':''}" aria-pressed="${category===c.id}">${esc(c.label)}</button>`).join('');
- paintStandings();paintGames();paintLeaders();paintFootball();paintFifa();paintCalendar();paintNews();paintTimes();
+ paintStandings();paintGames();paintLeaders();paintFootball();paintFifa();paintCalendar();paintHome();paintNews();paintTimes();
  const failed=[data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews].filter(Boolean),...Object.values(data.leaders).flatMap(x=>[x.c,x.p])].filter(s=>!s.ok).length;
  const generated=new Date(data.generatedAt);const stale=Date.now()-generated.getTime()>7200000;
  $('status').classList.toggle('error',!!failed||stale);$('status').textContent=failed?`一部の公式データを取得できませんでした（${failed}件）。各欄の出典をご確認ください。`:stale?'表示中のデータは2時間以上前のものです。自動更新が遅れている可能性があります。出典をご確認ください。':'公式ソースから取得 · 毎時自動更新予定 · 試合速報ではありません';
  $('fetched-at').textContent='データ生成日時：'+generated.toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})+'（日本時間）';$('data-updated').textContent='データ取得・集計完了：'+generated.toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})+'（日本時間）';
- }catch{$('status').classList.add('error');$('status').textContent=data?'更新に失敗しました。表示中は前回取得のデータです。出典をご確認ください。':'データを取得できませんでした。「データを再確認」から再試行してください。';if(!data)for(const id of ['standings','baseball-games','leaders','football-game','fifa-summary','roadmap'])$(id).innerHTML=empty();}
+ }catch{$('status').classList.add('error');$('status').textContent=data?'更新に失敗しました。表示中は前回取得のデータです。出典をご確認ください。':'データを取得できませんでした。「データを再確認」から再試行してください。';if(!data)for(const id of ['standings','baseball-games','leaders','football-game','fifa-summary','roadmap','today-games','week-games','favorite-summary'])$(id).innerHTML=empty();}
  finally{loading=false;$('refresh').disabled=false;}
 }
 $('categories').addEventListener('click',e=>{const b=e.target.closest('[data-category]');if(!b)return;category=b.dataset.category;$('categories').querySelectorAll('button').forEach(el=>{el.classList.toggle('selected',el===b);el.setAttribute('aria-pressed',String(el===b));});paintLeaders();});
