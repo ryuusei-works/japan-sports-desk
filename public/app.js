@@ -1,6 +1,6 @@
 let data, standingsLeague='c', leaderLeague='c', category='avg';
 const $=id=>document.getElementById(id);
-const panels={home:{title:'今日のスポーツを、ひと目で。',description:'野球と日本代表の試合を、ひとつのカレンダーに。',label:'ホーム'},settings:{title:'あなた好みの、観戦スペース。',description:'好きな色と応援球団で、毎日のチェックをもっと楽しく。',label:'設定'},guide:{title:'Sports Deskの使い方。',description:'知りたい情報へ、迷わず。はじめての方はこちらから。',label:'使い方・更新について'},baseball:{title:'野球を、もっと楽しもう。',description:'次の一戦も、タイトルの行方も。プロ野球の今をひと目で。',label:'野球'},football:{title:'日本代表の、次の一歩を。',description:'次の代表戦と世界の順位。SAMURAI BLUEを、もっと身近に。',label:'サッカー日本代表'}};
+const panels={play:{title:'観戦に、ちょっとしたワクワクを。',description:'今日の注目選手くじと観戦ビンゴ。試合の楽しみ方を、もうひとつ。',label:'お楽しみ'},home:{title:'今日のスポーツを、ひと目で。',description:'野球と日本代表の試合を、ひとつのカレンダーに。',label:'ホーム'},settings:{title:'あなた好みの、観戦スペース。',description:'好きな色と応援球団で、毎日のチェックをもっと楽しく。',label:'設定'},guide:{title:'Sports Deskの使い方。',description:'知りたい情報へ、迷わず。はじめての方はこちらから。',label:'使い方・更新について'},baseball:{title:'野球を、もっと楽しもう。',description:'次の一戦も、タイトルの行方も。プロ野球の今をひと目で。',label:'野球'},football:{title:'日本代表の、次の一歩を。',description:'次の代表戦と世界の順位。SAMURAI BLUEを、もっと身近に。',label:'サッカー日本代表'}};
 function showPanel(id){
  const target=Object.hasOwn(panels,id)?id:'home';
  for(const key of Object.keys(panels)){
@@ -113,18 +113,18 @@ tabs('standings-tabs',league=>{standingsLeague=league;paintStandings();});tabs('
 $('team').addEventListener('change',()=>{if(data)paintGames();});$('importance').addEventListener('change',paintSimulation);
 const scheduleTeams={神:'阪神',巨:'巨人',デ:'DeNA',広:'広島',ヤ:'ヤクルト',中:'中日',ソ:'ソフトバンク',西:'西武',日:'日本ハム',オ:'オリックス',ロ:'ロッテ',楽:'楽天'};
 const themes={lavender:'ラベンダー',blue:'ブルー',green:'グリーン',coral:'コーラル',amber:'アンバー'};
-const settingsKey='sports-desk-preferences-v1';let preferences={theme:'lavender',favorite:'all'};
-try{const saved=JSON.parse(window.localStorage.getItem(settingsKey)||'null');if(saved){if(Object.hasOwn(themes,saved.theme))preferences.theme=saved.theme;if(saved.favorite==='all'||Object.hasOwn(teams,saved.favorite))preferences.favorite=saved.favorite;}}catch{}
+const settingsKey='sports-desk-preferences-v1';let preferences={theme:'lavender',favorite:'all',fontSize:'standard'};
+try{const saved=JSON.parse(window.localStorage.getItem(settingsKey)||'null');if(saved){if(['standard','large'].includes(saved.fontSize))preferences.fontSize=saved.fontSize;if(Object.hasOwn(themes,saved.theme))preferences.theme=saved.theme;if(saved.favorite==='all'||Object.hasOwn(teams,saved.favorite))preferences.favorite=saved.favorite;}}catch{}
 function savePreferences(){try{window.localStorage.setItem(settingsKey,JSON.stringify(preferences));$('settings-status').textContent='保存しました。このブラウザーで次回も反映します。';}catch{$('settings-status').textContent='ブラウザーに保存できませんでした。この画面を開いている間だけ反映します。';}}
 function applyTheme(){document.documentElement.dataset.theme=preferences.theme;document.querySelectorAll('[data-theme-choice]').forEach(b=>{b.classList.toggle('selected',b.dataset.themeChoice===preferences.theme);b.setAttribute('aria-pressed',String(b.dataset.themeChoice===preferences.theme));});}
 $('theme-options').innerHTML=Object.entries(themes).map(([key,label])=>`<button data-theme-choice="${key}" class="theme-choice ${key}"><span></span>${label}</button>`).join('');
 const clubOptions='<option value="all">すべての球団</option>'+Object.entries(teams).map(([key,label])=>`<option value="${key}">${label}</option>`).join('');
 $('favorite-team').innerHTML=clubOptions.replace('すべての球団','未設定');$('favorite-team').value=preferences.favorite;$('leader-team').innerHTML=clubOptions;
-applyTheme();
+applyTheme();applyFontSize();
 $('theme-options').addEventListener('click',e=>{const b=e.target.closest('[data-theme-choice]');if(!b)return;preferences.theme=b.dataset.themeChoice;applyTheme();savePreferences();});
-function applyFavorite(){const code=preferences.favorite;const value=scheduleTeams[code]||'all';if([...$('team').options].some(o=>o.value===value))$('team').value=value;else $('team').value='all';if(data){paintGames();paintCalendar();paintHome();paintLeaders();paintStandings();}}
+function applyFavorite(){const code=preferences.favorite;const value=scheduleTeams[code]||'all';if([...$('team').options].some(o=>o.value===value))$('team').value=value;else $('team').value='all';if(data){paintGames();paintCalendar();paintHome();paintLeaders();paintStandings();paintRecentResults();paintLottery();}}
 $('favorite-team').addEventListener('change',()=>{preferences.favorite=$('favorite-team').value;savePreferences();applyFavorite();});
-$('settings-reset').addEventListener('click',()=>{preferences={theme:'lavender',favorite:'all'};$('favorite-team').value='all';applyTheme();applyFavorite();savePreferences();});
+$('settings-reset').addEventListener('click',()=>{preferences={theme:'lavender',favorite:'all',fontSize:'standard'};$('favorite-team').value='all';applyTheme();applyFontSize();applyFavorite();savePreferences();});
 $('leader-team').addEventListener('change',()=>{const club=$('leader-team').value;if(club!=='all'){leaderLeague='神巨デ広ヤ中'.includes(club)?'c':'p';$('leader-tabs').querySelectorAll('button').forEach(b=>{const chosen=b.dataset.league===leaderLeague;b.classList.toggle('selected',chosen);b.setAttribute('aria-pressed',String(chosen));});}if(data)paintLeaders();});
 const stamp=s=>s?.ok&&s.fetchedAt?'取得：'+new Date(s.fetchedAt).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})+' JST':'取得できませんでした';
 function paintTimes(){document.querySelectorAll('[data-time]').forEach(el=>{el.textContent=stamp(data[el.dataset.time]);});}
@@ -141,13 +141,13 @@ function paintCalendar(){
  const out=['日','月','火','水','木','金','土'].map(d=>`<div class="weekday">${d}</div>`);for(let i=0;i<offset;i++)out.push('<div class="calendar-blank"></div>');
  for(let n=1;n<=count;n++){const day=`${calendarMonth}-${String(n).padStart(2,'0')}`,games=events.filter(g=>g.date===day);out.push(`<button class="calendar-day ${day===currentDay()?'today':''} ${day===selectedDay?'chosen':''}" data-day="${day}" aria-pressed="${day===selectedDay}" aria-label="${day}、${games.length}試合"><span class="day-number">${n}</span>${games.slice(0,3).map(g=>`<span class="calendar-event ${g.sport} ${isFavorite(g)?'favorite':''}">${g.sport==='baseball'?'⚾':'⚽'} ${isFavorite(g)?'★ ':''}${esc(eventLabel(g))}</span>`).join('')}${games.length>3?`<span class="more-games">ほか${games.length-3}試合</span>`:''}</button>`);}
  $('calendar').innerHTML=out.join('');$('day-title').textContent=date(selectedDay)+'の試合';const games=events.filter(g=>g.date===selectedDay);
- $('day-games').innerHTML=games.length?games.map(g=>`<div class="calendar-detail-game ${g.sport}"><b>${g.sport==='baseball'?'⚾':'⚽'} ${isFavorite(g)?'★ ':''}${esc(eventLabel(g))}</b><span>${g.status==='finished'?'終了':g.status==='cancelled'?'中止・延期':esc(g.time)||'開始時刻は公式で確認'} · ${esc(g.venue)}</span></div>`).join(''):empty('表示対象の試合は取得済みの日程にありません。未発表・取得範囲外の日程は公式サイトをご確認ください。');
+ $('day-games').innerHTML=games.length?games.map(g=>`<div class="calendar-detail-game ${g.sport}"><b>${g.sport==='baseball'?'⚾':'⚽'} ${isFavorite(g)?'★ ':''}${esc(eventLabel(g))}</b><span>${esc(gameState(g))} · ${esc(g.venue)}</span></div>`).join(''):empty('表示対象の試合は取得済みの日程にありません。未発表・取得範囲外の日程は公式サイトをご確認ください。');
 }
 function filteredCalendarEvents(){return calendarEvents().filter(g=>calendarFilter==='all'||calendarFilter==='favorite'&&isFavorite(g)||g.sport===calendarFilter);}
 $('calendar-filters').addEventListener('click',e=>{const b=e.target.closest('[data-calendar-filter]');if(!b)return;calendarFilter=b.dataset.calendarFilter;$('calendar-filters').querySelectorAll('button').forEach(el=>{const chosen=el===b;el.classList.toggle('selected',chosen);el.setAttribute('aria-pressed',String(chosen));});paintCalendar();});
 function shiftDay(day,offset){const d=new Date(day+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+offset);return d.toISOString().slice(0,10);}
 function weekRange(today=currentDay()){const day=new Date(today+'T00:00:00Z').getUTCDay(),start=shiftDay(today,-((day+6)%7));return {start,end:shiftDay(start,6)};}
-function gameState(g){return g.status==='finished'?'終了':g.status==='cancelled'?'中止・延期':g.time?g.time+' 予定':'開始時刻は公式で確認';}
+function gameState(g){return g.status==='finished'?'終了':g.status==='cancelled'?'中止・延期':g.status==='inprogress'?'試合中（取得時点）':g.time?g.time+' 予定':'開始時刻は公式で確認';}
 function homeGames(games){return games.map(g=>`<div class="home-game ${g.sport}"><div><span class="home-game-date">${date(g.date)} · ${g.sport==='baseball'?'⚾ 野球':'⚽ 日本代表'}</span><b>${isFavorite(g)?'★ ':''}${esc(eventLabel(g))}</b><small>${esc(g.venue)}</small></div><span class="home-game-state">${esc(gameState(g))}</span></div>`).join('');}
 function titleGap(player,top,cat){const difference=Math.abs(Number(player.value)-Number(top.value));if(difference<1e-9)return '首位（差なし）';const decimals=['avg','obp','pct'].includes(cat.id)?3:cat.id==='era'?2:0;return difference.toFixed(decimals)+(cat.unit?' '+cat.unit:'');}
 function paintHome(){
@@ -169,6 +169,54 @@ function paintFavoriteSummary(){
 $('calendar').addEventListener('click',e=>{const b=e.target.closest('[data-day]');if(b){selectedDay=b.dataset.day;paintCalendar();}});
 function moveMonth(delta){const [y,m]=calendarMonth.split('-').map(Number);calendarMonth=new Date(Date.UTC(y,m-1+delta,1)).toISOString().slice(0,7);selectedDay=calendarMonth+'-01';paintCalendar();}
 $('month-prev').addEventListener('click',()=>moveMonth(-1));$('month-next').addEventListener('click',()=>moveMonth(1));$('month-today').addEventListener('click',()=>{calendarMonth=currentDay().slice(0,7);selectedDay=currentDay();paintCalendar();});
+function applyFontSize(){document.documentElement.dataset.fontSize=preferences.fontSize;$('font-size-options').querySelectorAll('button').forEach(b=>{const chosen=b.dataset.fontSize===preferences.fontSize;b.classList.toggle('selected',chosen);b.setAttribute('aria-pressed',String(chosen));});}
+$('font-size-options').addEventListener('click',e=>{const b=e.target.closest('[data-font-size]');if(!b)return;preferences.fontSize=b.dataset.fontSize;applyFontSize();savePreferences();});
+function completedFootball(){const source=data.footballHistory||data.footballGames;return source?.ok?[...source.data].filter(g=>g.status==='finished'&&g.date<=currentDay()).sort((a,b)=>b.date.localeCompare(a.date)):[];}
+function validScore(a,b){return Number.isInteger(a)&&Number.isInteger(b)&&a>=0&&b>=0;}
+function footballOutcome(g){const result=g.result||(validScore(g.japanScore,g.opponentScore)?g.japanScore>g.opponentScore?'win':g.japanScore<g.opponentScore?'loss':'draw':null);return (result==='win'?'勝ち':result==='loss'?'負け':result==='draw'?'引き分け':'結果未取得')+(/PK/i.test(g.score||'')?'（PK戦）':'');}
+function footballResultCard(g){const score=validScore(g.japanScore,g.opponentScore)?`${g.japanScore} − ${g.opponentScore}`:'スコア未取得';const pk=(g.score||'').match(/PK\s*\d+\s*[-－–−]\s*\d+/i)?.[0];return `<div class="result-match"><span class="result-date">${date(g.date)} · ${esc(footballOutcome(g))}</span><h4>日本 <strong>${score}</strong> ${esc(g.opponent)}</h4>${pk?`<p>${esc(pk)}</p>`:''}<p>${esc(g.competition||'')}</p><small>${esc(g.venue||'')}</small><a href="${esc(g.url||'https://www.jfa.jp/samuraiblue/')}" target="_blank" rel="noopener noreferrer">JFA公式結果 ↗</a></div>`;}
+function paintRecentResults(){
+ if(!data)return;const club=preferences.favorite;$('baseball-results-heading').textContent=club==='all'?'応援球団の直近5試合':teams[club]+'の直近5試合';
+ const source=data.baseballResults;
+ if(club==='all')$('baseball-results').innerHTML=empty('設定で応援球団を選ぶと、直近5試合の結果を表示します。');
+ else if(!source?.ok)$('baseball-results').innerHTML=empty('試合結果を取得できませんでした。NPB公式日程をご確認ください。');
+ else{const games=[...source.data].filter(g=>g.status==='finished'&&g.date<=currentDay()&&isFavorite(g)).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+ $('baseball-results').innerHTML=games.length?`<div class="recent-result-list">${games.map(g=>{const scored=validScore(g.homeScore,g.awayScore),favoriteScore=g.home===scheduleTeams[club]?g.homeScore:g.awayScore,otherScore=g.home===scheduleTeams[club]?g.awayScore:g.homeScore;const outcome=!scored?'スコア未取得':favoriteScore>otherScore?'勝ち':favoriteScore<otherScore?'負け':'引き分け';return `<a class="recent-result" href="${esc(g.url||source.source)}" target="_blank" rel="noopener noreferrer"><time>${date(g.date)}</time><span class="result-outcome">${outcome}</span><b>${esc(g.home)} <strong>${scored?`${g.homeScore} − ${g.awayScore}`:'—'}</strong> ${esc(g.away)}</b><small>${esc(g.venue)} ↗</small></a>`;}).join('')}</div>${games.length<5?'<p class="source-time">取得範囲内の終了試合が5試合未満のため、確認できた分だけ表示しています。</p>':''}`:empty('取得範囲内に終了した試合はありません。最大8か月遡って確認しています。');}
+ const history=data.footballHistory||data.footballGames;const last=completedFootball()[0];$('football-result').innerHTML=!history?.ok?empty('代表戦の結果を取得できませんでした。'):last?footballResultCard(last):empty('取得済みの日程に終了した代表戦はありません。');
+}
+function paintOpponentProfile(){
+ if(!data)return;const game=nextFootballGame();if(!game){$('opponent-profile').innerHTML=empty('次の代表戦が未発表、または日程を取得できませんでした。');return;}
+ const rows=data.fifa.ok?data.fifa.data.rows:[],opponent=matchedOpponent(game,rows),jp=rows.find(r=>r.code==='JPN');
+ const history=data.footballHistory||data.footballGames;const headToHead=completedFootball().find(g=>g.opponent.replace(/代表$/,'').trim()===game.opponent.replace(/代表$/,'').trim());
+ const gap=opponent&&jp?opponent.points-jp.points:null;
+ $('opponent-profile').innerHTML=`<div class="opponent-intro"><span class="eyebrow">NEXT OPPONENT / ${date(game.date)}</span><h4>${esc(game.opponent)}</h4>${opponent&&jp?`<div class="opponent-numbers"><span><b>${opponent.rank}位</b>FIFAランキング</span><span><b>${number(opponent.points)} pts</b>最新公式ポイント</span></div><p>${Math.abs(gap)<.005?'日本と同ポイント':`日本より ${number(Math.abs(gap))} pts ${gap>0?'上':'下'}`}</p>`:'<p>FIFA順位・ポイントを取得または照合できませんでした。</p>'}<h5>直近の日本との対戦</h5></div>${!history?.ok?empty('過去の対戦結果を取得できませんでした。'):headToHead?footballResultCard(headToHead):empty('取得した直近3年分の公式日程に、この相手との対戦結果は見つかりませんでした。')}<p class="source-time">FIFAは最新公式発表、対戦結果は取得した過去3年分の男子代表日程が対象です。</p>`;
+}
+const pickKey='sports-desk-player-pick-v1',bingoKey='sports-desk-bingo-v1';let savedPick=null,bingoChecks=Array(9).fill(false);bingoChecks[4]=true;
+try{const p=JSON.parse(window.localStorage.getItem(pickKey)||'null');if(p&&typeof p.name==='string'&&Object.hasOwn(teams,p.club)&&typeof p.date==='string')savedPick=p;}catch{}
+try{const b=JSON.parse(window.localStorage.getItem(bingoKey)||'null');if(Array.isArray(b)&&b.length===9&&b.every(v=>typeof v==='boolean'))bingoChecks=b;bingoChecks[4]=true;}catch{}
+function savePlay(key,value){try{window.localStorage.setItem(key,JSON.stringify(value));$('play-storage-status').textContent='このブラウザーに保存しました。登録・ログインは不要です。';}catch{$('play-storage-status').textContent='ブラウザーに保存できませんでした。この画面を開いている間だけ反映します。';}}
+function playerPool(){
+ if(!data||preferences.favorite==='all')return [];const club=preferences.favorite,league='神巨デ広ヤ中'.includes(club)?'c':'p',pool=new Map();
+ for(const cat of data.categories){const source=data.leaders[cat.id]?.[league];if(!source?.ok)continue;for(const r of source.data){if(r.team!==club)continue;if(!pool.has(r.name))pool.set(r.name,{name:r.name,stats:[]});pool.get(r.name).stats.push({label:cat.label,value:r.value,unit:cat.unit||'',note:cat.note||''});}}
+ return [...pool.values()];
+}
+function paintLottery(){
+ if(!data){$('draw-player').disabled=true;$('lottery-result').innerHTML=empty('公式成績の読み込み後に抽選できます。');return;}
+ const pool=playerPool(),club=preferences.favorite,league='神巨デ広ヤ中'.includes(club)?'c':'p';$('draw-player').disabled=!pool.length;
+ $('lottery-note').textContent=club==='all'?'設定で応援球団を選んでください。':`${teams[club]} · ${data.year}年の取得済み成績掲載選手 ${pool.length}人`;
+ const sources=club==='all'?[]:data.categories.map(cat=>data.leaders[cat.id]?.[league]);$('lottery-time').textContent=sources.length?'部門ごとの取得日時は野球ページで確認できます。'+(sources.some(s=>!s?.ok)?'一部の部門を取得できていないため、取得成功分が抽選対象です。':''):'';
+ const player=savedPick?.date===currentDay()&&savedPick?.year===data.year&&savedPick?.club===club?pool.find(p=>p.name===savedPick.name):null;
+ if(!pool.length){$('lottery-result').innerHTML=empty(club==='all'?'応援球団を選んで、今日の1人を引いてみよう。':'抽選対象の選手を取得できませんでした。公式成績を再確認してください。');return;}
+ $('lottery-result').innerHTML=player?`<div class="picked-player"><span class="eyebrow">TODAY’S PICK / ${date(currentDay())}</span><div class="pick-symbol" aria-hidden="true">✦</div><h3>${esc(player.name)}</h3><p>${esc(teams[club])}</p><div class="pick-stats">${player.stats.map(s=>`<div><span>${esc(s.label)}</span><b>${esc(s.value)} <small>${esc(s.unit)}</small></b>${s.note?`<small>${esc(s.note)}</small>`:''}</div>`).join('')}</div><p class="note">取得できた掲載部門のみ表示しています。掲載のない部門を0として扱いません。</p></div>`:'<div class="pick-placeholder"><span aria-hidden="true">🎲</span><h3>今日、誰に注目する？</h3><p>ボタンを押して選手を引いてみよう。</p></div>';
+ $('draw-player').textContent=player?'もう一度引く ✦':'注目選手を引く ✦';
+}
+$('draw-player').addEventListener('click',()=>{const pool=playerPool();if(!pool.length)return;const player=pool[Math.floor(Math.random()*pool.length)];savedPick={date:currentDay(),year:data.year,club:preferences.favorite,name:player.name};savePlay(pickKey,savedPick);paintLottery();});
+const bingoLabels=['応援球団が勝利','ホームランが出た','日本代表が無失点','ナイスプレーを見た','FREE','好きな選手が活躍','初めての選手を覚えた','最後まで観戦した','誰かとスポーツの話をした'];
+function paintBingo(){const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]],complete=lines.filter(line=>line.every(i=>bingoChecks[i]));const winning=new Set(complete.flat());
+ $('bingo-board').innerHTML=bingoLabels.map((label,i)=>`<button class="bingo-cell ${bingoChecks[i]?'checked':''} ${winning.has(i)?'bingo-win':''}" data-bingo-cell="${i}" aria-pressed="${bingoChecks[i]}" ${i===4?'disabled':''}>${bingoChecks[i]?'<span aria-hidden="true">✓</span>':''}${label}</button>`).join('');$('bingo-status').textContent=complete.length?`🎉 ${complete.length}ライン BINGO！ · ${bingoChecks.filter(Boolean).length}/9マス達成`:`${bingoChecks.filter(Boolean).length}/9マス達成 · チェックはもう一度押すと戻せます。`;
+}
+$('bingo-board').addEventListener('click',e=>{const b=e.target.closest('[data-bingo-cell]');if(!b)return;const i=Number(b.dataset.bingoCell);if(!Number.isInteger(i)||i<0||i>8||i===4)return;const focused=document.activeElement===b;bingoChecks[i]=!bingoChecks[i];savePlay(bingoKey,bingoChecks);paintBingo();if(focused)$('bingo-board').querySelector(`[data-bingo-cell="${i}"]`).focus();});
+$('reset-bingo').addEventListener('click',()=>{bingoChecks=Array(9).fill(false);bingoChecks[4]=true;savePlay(bingoKey,bingoChecks);paintBingo();});paintBingo();paintLottery();
 let loading=false,dataInitialized=false;async function refresh(){
  if(loading)return;loading=true;$('refresh').disabled=true;$('status').textContent='公開済みのデータを確認しています…';
  try{const response=await fetch('./data/sports.json',{cache:'no-cache',signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error('データ取得エラー');data=await response.json();
@@ -176,12 +224,12 @@ let loading=false,dataInitialized=false;async function refresh(){
  $('season').textContent=data.year;
  const teamBefore=$('team').value;$('team').innerHTML='<option value="all">すべてのチーム</option>'+Object.entries(scheduleTeams).map(([key,t])=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');$('team').value=[...$('team').options].some(o=>o.value===teamBefore)?teamBefore:'all';if(!dataInitialized){applyFavorite();dataInitialized=true;}
  $('categories').innerHTML=data.categories.map(c=>`<button data-category="${c.id}" class="${category===c.id?'selected':''}" aria-pressed="${category===c.id}">${esc(c.label)}</button>`).join('');
- paintStandings();paintGames();paintLeaders();paintFootball();paintFifa();paintCalendar();paintHome();paintNews();paintTimes();paintComparisonTime();
- const failed=[data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews].filter(Boolean),...Object.values(data.leaders).flatMap(x=>[x.c,x.p])].filter(s=>!s.ok).length;
+ paintStandings();paintGames();paintLeaders();paintFootball();paintFifa();paintCalendar();paintHome();paintNews();paintTimes();paintComparisonTime();paintRecentResults();paintOpponentProfile();paintLottery();
+ const failed=[data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews,data.baseballResults,data.footballHistory].filter(Boolean),...Object.values(data.leaders).flatMap(x=>[x.c,x.p])].filter(s=>!s.ok).length;
  const generated=new Date(data.generatedAt);const stale=Date.now()-generated.getTime()>7200000;
  $('status').classList.toggle('error',!!failed||stale);$('status').textContent=failed?`一部の公式データを取得できませんでした（${failed}件）。各欄の出典をご確認ください。`:stale?'表示中のデータは2時間以上前のものです。自動更新が遅れている可能性があります。出典をご確認ください。':'公式ソースから取得 · 毎時自動更新予定 · 試合速報ではありません';
  $('fetched-at').textContent='データ生成日時：'+generated.toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})+'（日本時間）';$('data-updated').textContent='データ取得・集計完了：'+generated.toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})+'（日本時間）';
- }catch{$('status').classList.add('error');$('status').textContent=data?'更新に失敗しました。表示中は前回取得のデータです。出典をご確認ください。':'データを取得できませんでした。「データを再確認」から再試行してください。';if(!data)for(const id of ['standings','baseball-games','leaders','football-game','fifa-summary','roadmap','today-games','week-games','favorite-summary'])$(id).innerHTML=empty();}
+ }catch{$('status').classList.add('error');$('status').textContent=data?'更新に失敗しました。表示中は前回取得のデータです。出典をご確認ください。':'データを取得できませんでした。「データを再確認」から再試行してください。';if(!data)for(const id of ['standings','baseball-games','leaders','football-game','fifa-summary','roadmap','today-games','week-games','favorite-summary','baseball-results','football-result','opponent-profile'])$(id).innerHTML=empty();}
  finally{loading=false;$('refresh').disabled=false;}
 }
 $('categories').addEventListener('click',e=>{const b=e.target.closest('[data-category]');if(!b)return;category=b.dataset.category;$('categories').querySelectorAll('button').forEach(el=>{el.classList.toggle('selected',el===b);el.setAttribute('aria-pressed',String(el===b));});paintLeaders();});

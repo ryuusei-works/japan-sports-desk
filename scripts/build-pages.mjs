@@ -20,7 +20,7 @@ export async function readPublishedPrevious(){
 export async function buildPages({collect=collectData,output=resolve('dist'),loadPrevious=readPrevious}={}){
   const previous=await loadPrevious(output);
   const data=await collect();
-  const sources=[data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews].filter(Boolean),...Object.values(data.leaders).flatMap(v=>[v.c,v.p])];
+  const sources=[data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews,data.baseballResults,data.footballHistory].filter(Boolean),...Object.values(data.leaders).flatMap(v=>[v.c,v.p])];
   const successful=sources.filter(s=>s.ok).length;
   // Do not replace the existing deployment if every official source is unavailable.
   if(successful===0)throw new Error('All official sources unavailable; keeping the previous deployment.');

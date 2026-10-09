@@ -27,3 +27,10 @@ test('official news parses dates, removes duplicates and rejects external links'
  const rows=parseNews(html,'baseball');assert.equal(rows.length,2);assert.equal(rows[0].date,'2026-10-09');assert.equal(rows[0].url,'https://npb.jp/news/detail/latest.html');
  const soccer=parseNews('<a href="/news/1/"><span class="date">2026/10/09</span><span class="text-news">代表のニュース</span></a>','football');assert.equal(soccer[0].title,'代表のニュース');assert.throws(()=>parseNews('<html></html>','football'));
 });
+test('baseball scores retain zeros and do not treat live or cancelled games as final',()=>{
+ const row=(a,b,state)=>`<tr><th>10/10</th><td><div class="team1">巨人</div><div class="team2">阪神</div><a href="/scores/2026/1010/g-t/"><div class="score1">${a}</div><div class="state">${state}</div><div class="score2">${b}</div></a></td></tr>`;
+ const games=parseBaseballGames('<table>'+row('0','0','-')+row('3','2','5回裏')+row('','','雨天中止')+row('','','')+'</table>',2026,10);assert.equal(games[0].homeScore,0);assert.equal(games[0].awayScore,0);assert.equal(games[0].status,'finished');assert.match(games[0].url,/^https:\/\/npb.jp\/scores\//);assert.equal(games[1].status,'inprogress');assert.equal(games[2].status,'cancelled');assert.equal(games[3].status,'scheduled');assert.equal(games[3].homeScore,null);
+});
+test('football parses the playing score independently of PK and preserves official result',()=>{
+ const row=s=>`<tr><td class="date">10/10</td><td class="team">相手</td><td class="score">${s}</td></tr>`;const games=parseFootballGames('<table>'+row('〇0-0<br>PK5-4')+row('-')+row('中止')+'</table>',2026);assert.equal(games[0].japanScore,0);assert.equal(games[0].opponentScore,0);assert.equal(games[0].result,'win');assert.match(games[0].score,/ PK5-4/);assert.equal(games[1].status,'scheduled');assert.equal(games[1].japanScore,null);assert.equal(games[2].status,'cancelled');
+});
