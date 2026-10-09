@@ -43,11 +43,11 @@ $('favorite-team').value='西';$('favorite-team').dispatchEvent(new window.Event
 document.querySelector('[data-theme-choice="green"]').click();assert.equal(document.documentElement.dataset.theme,'green');assert.match(saved.get('sports-desk-preferences-v1'),/green/);
 $('leader-team').value='西';$('leader-team').dispatchEvent(new window.Event('change'));assert.match($('leader-spotlight').textContent,/平良/);assert.ok([...$('leaders').querySelectorAll('tbody tr')].every(r=>r.textContent.includes('西')));assert.match($('leader-note').textContent,/球団内/);
 $('leader-team').value='all';$('leader-team').dispatchEvent(new window.Event('change'));
-for(const sport of ['baseball','football']){assert.equal($(sport+'-news').querySelectorAll('a').length,6);assert.match($(sport+'-news').textContent,/2026/);}
+for(const sport of ['baseball','football']){assert.equal($(sport+'-news').querySelectorAll('a').length,3);assert.match($(sport+'-news').textContent,/2026/);}
 assert.equal($('baseball-results').querySelectorAll('.recent-result').length,5);
 assert.match($('opponent-profile').textContent,/ブラジル/);assert.match($('football-result').textContent,/2 − 1/);
-$('tab-play').click();assert.equal($('play').hidden,false);assert.equal($('baseball').hidden,true);$('draw-player').click();assert.ok($('lottery-result').querySelector('.picked-player'));assert.ok($('lottery-result').querySelectorAll('.pick-stats>div').length>0);
-for(const i of [0,1,2])document.querySelector(`[data-bingo-cell="${i}"]`).click();assert.match($('bingo-status').textContent,/BINGO/);$('reset-bingo').click();assert.match($('bingo-status').textContent,/1\/9/);
+assert.equal($('play'),null);assert.equal($('tab-play'),null);
+document.querySelector('#font-size-options [data-font-size="small"]').click();assert.equal(document.documentElement.dataset.fontSize,'small');
 document.querySelector('#font-size-options [data-font-size="large"]').click();assert.equal(document.documentElement.dataset.fontSize,'large');
 $('settings-reset').click();assert.equal(document.documentElement.dataset.theme,'lavender');assert.equal($('team').value,'all');assert.equal(document.documentElement.dataset.fontSize,'standard');
 document.querySelector('#leader-tabs [data-league="all"]').click();
