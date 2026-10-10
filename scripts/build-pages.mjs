@@ -1,3 +1,4 @@
+import {captureFifaHistory} from '../lib/enhancements.mjs';
 import { mkdir, copyFile, writeFile, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -39,7 +40,7 @@ export function captureDraftHistory(previous,current){
 export async function buildPages({collect=collectData,output=resolve('dist'),loadPrevious=readPrevious,runtime=process.env.VERCEL==='1'}={}){
   const previous=await loadPrevious(output);
   const data=await collect();
-  const sources=[data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews,data.baseballResults,data.footballHistory].filter(Boolean),...Object.values(data.leaders).flatMap(v=>[v.c,v.p])];
+  const sources=[data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews,data.baseballResults,data.footballHistory,data.footballSquad,data.baseballStarters,data.overseas].filter(Boolean),...Object.values(data.leaders).flatMap(v=>[v.c,v.p])];
   sources.push(...Object.values(data.draft?.clubs||{}).flatMap(club=>[club.bat,club.pit]));
   sources.push(...[data.daily?.nationalNews,data.footballRivals].filter(Boolean),...Object.values(data.daily?.locations||{}).flatMap(location=>[location.news]),...(data.footballRivals?.ok?data.footballRivals.data.countries.map(country=>country.games):[]));
   const successful=sources.filter(s=>s.ok).length;
@@ -48,6 +49,7 @@ export async function buildPages({collect=collectData,output=resolve('dist'),loa
   if(successful!==sources.length)console.warn(`Public sources: ${successful}/${sources.length}. Missing sections will display an error.`);
   data.previous=comparisonSnapshot(previous,data);
   data.draftHistory=captureDraftHistory(previous,data);
+  data.fifaHistory=captureFifaHistory(previous,data);
   await mkdir(resolve(output,'data'),{recursive:true});
   for(const file of ['index.html','app.js','style.css','.nojekyll'])await copyFile(resolve('public',file),resolve(output,file));
   if(runtime){const file=resolve(output,'index.html');await writeFile(file,(await readFile(file,'utf8')).replace('<html lang="ja"','<html data-data-api="./api/data" lang="ja"'));}
