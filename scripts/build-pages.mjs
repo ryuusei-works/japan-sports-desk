@@ -21,6 +21,7 @@ export async function buildPages({collect=collectData,output=resolve('dist'),loa
   const previous=await loadPrevious(output);
   const data=await collect();
   const sources=[data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews,data.baseballResults,data.footballHistory].filter(Boolean),...Object.values(data.leaders).flatMap(v=>[v.c,v.p])];
+  sources.push(...Object.values(data.draft?.clubs||{}).flatMap(club=>[club.bat,club.pit]));
   const successful=sources.filter(s=>s.ok).length;
   // Do not replace the existing deployment if every official source is unavailable.
   if(successful===0)throw new Error('All official sources unavailable; keeping the previous deployment.');

@@ -1,3 +1,4 @@
+import {parseDraftPlayers} from '../lib/data.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseNews,parseStandings,parseLeaders,parseBaseballGames,parseFootballGames,rankPlayers,fifaDelta,jstDate} from '../lib/data.mjs';
@@ -33,4 +34,8 @@ test('baseball scores retain zeros and do not treat live or cancelled games as f
 });
 test('football parses the playing score independently of PK and preserves official result',()=>{
  const row=s=>`<tr><td class="date">10/10</td><td class="team">相手</td><td class="score">${s}</td></tr>`;const games=parseFootballGames('<table>'+row('〇0-0<br>PK5-4')+row('-')+row('中止')+'</table>',2026);assert.equal(games[0].japanScore,0);assert.equal(games[0].opponentScore,0);assert.equal(games[0].result,'win');assert.match(games[0].score,/ PK5-4/);assert.equal(games[1].status,'scheduled');assert.equal(games[1].japanScore,null);assert.equal(games[2].status,'cancelled');
+});
+
+test('club stats parse by headings, remove batting marks, preserve zero and reject changed structure',()=>{
+ const labels=['選手','試合','打席','打数','得点','安打','二塁打','三塁打','本塁打','塁打','打点','盗塁','盗塁刺','犠打','犠飛','四球','故意四','死球','三振','併殺打','打率','長打率','出塁率'];const values=labels.map((label,i)=>i===0?'<sup>*</sup>選手　太郎':label==='打率'?'.250':'0');const html='<table><thead><tr>'+labels.map(s=>'<th>'+s+'</th>').join('')+'</tr></thead><tbody><tr>'+values.map(s=>'<td>'+s+'</td>').join('')+'</tr></tbody></table>';assert.deepEqual(parseDraftPlayers(html,'神','bat'),[{name:'選手 太郎',team:'神',values:{avg:'.250',hr:'0',h:'0',rbi:'0'}}]);assert.throws(()=>parseDraftPlayers('<table></table>','神','bat'));
 });

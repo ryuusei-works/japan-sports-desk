@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import {parseHTML} from 'linkedom';
 
-test('four accessible tabs and help links support direct links, guide links and keyboard navigation',async()=>{
+test('five accessible tabs and help links support direct links, guide links and keyboard navigation',async()=>{
  const {window,document}=parseHTML(await readFile('public/index.html','utf8'));
  window.location={hash:'#football'};
  window.history={pushState(state,title,url){window.location.hash=url;}};
@@ -12,19 +12,20 @@ test('four accessible tabs and help links support direct links, guide links and 
  vm.runInContext(await readFile('public/app.js','utf8'),context);
  await new Promise(r=>setTimeout(r,0));
  const $=id=>document.getElementById(id);
- const visible=()=>['home','guide','baseball','football','settings'].filter(id=>!$(id).hidden);
+ const visible=()=>['home','guide','baseball','football','draft','settings'].filter(id=>!$(id).hidden);
  assert.deepEqual(visible(),['football']);assert.match($('breadcrumb-current').textContent,/サッカー/);
  document.querySelector('.sidebar-help').click();assert.deepEqual(visible(),['guide']);
- assert.equal($('tab-guide'),null);assert.equal(document.querySelectorAll('.site-tabs [role=tab]').length,4);assert.equal($('tab-football').getAttribute('tabindex'),'-1');
+ assert.equal($('tab-guide'),null);assert.equal(document.querySelectorAll('.site-tabs [role=tab]').length,5);assert.equal($('tab-football').getAttribute('tabindex'),'-1');
  document.querySelector('#guide [data-open-tab="baseball"]').click();assert.deepEqual(visible(),['baseball']);
  const down=new window.Event('keydown',{bubbles:true,cancelable:true});Object.defineProperty(down,'key',{value:'ArrowDown'});$('tab-baseball').dispatchEvent(down);assert.deepEqual(visible(),['football']);
  const home=new window.Event('keydown',{bubbles:true,cancelable:true});Object.defineProperty(home,'key',{value:'Home'});$('tab-football').dispatchEvent(home);assert.deepEqual(visible(),['home']);
  window.location.hash='#baseball';window.dispatchEvent(new window.Event('hashchange'));assert.deepEqual(visible(),['baseball']);
  window.location.hash='#football';window.dispatchEvent(new window.Event('popstate'));assert.deepEqual(visible(),['football']);
  window.location.hash='#play';window.dispatchEvent(new window.Event('hashchange'));assert.deepEqual(visible(),['home']);assert.equal($('tab-play'),null);assert.equal($('play'),null);
+ window.location.hash='#draft';window.dispatchEvent(new window.Event('hashchange'));assert.deepEqual(visible(),['draft']);assert.equal($('tab-draft').getAttribute('aria-selected'),'true');
  window.location.hash='#invalid';window.dispatchEvent(new window.Event('hashchange'));assert.deepEqual(visible(),['home']);
  document.querySelector('.sidebar-help').click();window.location.hash='#main-content';window.dispatchEvent(new window.Event('hashchange'));assert.deepEqual(visible(),['guide'],'Skip-to-content must preserve the current tab');
- for(const id of ['home','baseball','football','settings'])assert.equal($(id).getAttribute('aria-labelledby'),'tab-'+id);
+ for(const id of ['home','baseball','football','draft','settings'])assert.equal($(id).getAttribute('aria-labelledby'),'tab-'+id);
  assert.equal($('guide').getAttribute('role'),'region');assert.ok(document.getElementById($('guide').getAttribute('aria-labelledby')));assert.ok(document.querySelector('#guide #fetched-at'),'Help link retains data update documentation');
  assert.equal($('baseball').querySelector('article').querySelector('.news-list').id,'baseball-news');assert.equal($('football').querySelector('article').querySelector('.news-list').id,'football-news');assert.equal($('home').querySelector('.news-list'),null);
 });
