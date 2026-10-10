@@ -28,3 +28,13 @@ test('daily collection isolates a missing region/source and still retains all 47
 test('rivals are selected by current rank and per-country failures do not hide the remaining countries',async()=>{
  const calls=[],get=async url=>{calls.push(url);if(url.endsWith('/teams'))return JSON.stringify(directory());if(url.includes('/teams/2/'))throw Error('unavailable');return JSON.stringify(schedule([event()]));};const fifa={ok:true,data:{rows:[{rank:1,code:'ESP'},{rank:2,code:'BRA'},{rank:3,code:'JPN'},{rank:4,code:'ARG'}]}};const result=await collectRivals(get,fifa);assert.equal(result.ok,true);assert.equal(result.data.countries.length,2);assert.equal(result.data.countries[0].games.data.length,1,'past/future duplicates removed');assert.equal(result.data.countries[1].games.ok,false);assert.ok(calls.some(c=>c.endsWith('?fixture=true')));assert.equal(calls.length,5);assert.equal((await collectRivals(get,{ok:false})).ok,false);
 });
+
+
+test('weather supplements short-range temperatures with weekly values for the same station and JST date',()=>{
+ const payload=weather();payload[0].timeSeries[0].timeDefines.push('2026-10-12T00:00:00+09:00');payload[0].timeSeries[0].areas[0].weathers.push('くもり');payload[0].timeSeries[2].areas[0].area.code='44132';
+ payload.push({timeSeries:[{timeDefines:['2026-10-10T15:00:00Z','2026-10-11T15:00:00Z'],areas:[{area:{name:'別地点',code:'99999'},tempsMin:['99','99'],tempsMax:['99','99']},{area:{name:'東京',code:'44132'},tempsMin:['18','0'],tempsMax:['28','24']}]}]});
+ const result=parseWeather(payload);assert.equal(result.days[1].low,0,'short-range zero takes priority');assert.equal(result.days[1].high,27);assert.equal(result.days[2].low,0);assert.equal(result.days[2].high,24);assert.equal(result.days[0].high,null,'never borrow another day');
+ payload[1].timeSeries[0].areas[1].tempsMin[1]='';assert.equal(parseWeather(payload).days[2].low,null);
+ payload[1].timeSeries[0].areas.pop();assert.equal(parseWeather(payload).days[2].high,null,'never borrow a different station');
+ payload[0].timeSeries.pop();assert.equal(parseWeather(payload).station,'別地点','weekly station is identified when short-range has no temperature series');
+});
