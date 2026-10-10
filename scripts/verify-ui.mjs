@@ -5,7 +5,7 @@ import {parseHTML} from 'linkedom';
 const data=JSON.parse(await readFile(process.argv[2]||'/tmp/sports-result.json','utf8'));
 const {document,window}=parseHTML(await readFile('public/index.html','utf8'));
 window.location={hash:''};
-const saved=new Map();window.localStorage={getItem:k=>saved.get(k)??null,setItem:(k,v)=>saved.set(k,v)};
+const saved=new Map();window.localStorage={getItem:k=>saved.get(k)??null,setItem:(k,v)=>saved.set(k,v),removeItem:k=>saved.delete(k),key:i=>[...saved.keys()][i],get length(){return saved.size;}};
 window.history={pushState(state,title,url){window.location.hash=url;}};
 // linkedom omits the writable select.value/options browser contract.
 Object.defineProperty(window.HTMLSelectElement.prototype,'options',{get(){return this.querySelectorAll('option');}});
@@ -57,3 +57,5 @@ console.log('PASS: calendar month and day selection, favorite, themes and persis
 
 $('tab-draft').click();assert.equal($('draft').hidden,false);assert.equal($('draft-categories').querySelectorAll('button').length,7);assert.equal($('draft-picks').querySelectorAll('.draft-round').length,10);
 const club=Object.keys(data.draft.clubs)[0],player=data.draft.clubs[club].bat.data[0];document.querySelector('#draft-categories [data-draft-category="hr"]').click();for(const [field,value] of [['team',club],['name',player.name]]){const el=document.querySelector(`[data-draft-field="${field}"][data-army="0"][data-round="0"]`);el.value=value;el.dispatchEvent(new window.Event('change',{bubbles:true}));}assert.equal(vm.runInContext('draftTotal(draftCategories[1],0).value',context),Number(player.values.hr));assert.equal(vm.runInContext('draftTotal(draftCategories[1],0).ready',context),false);assert.match($('draft-score').textContent,/判定待ち/);console.log('PASS: real club statistics, draft selection, zero totals and incomplete verdict.');
+
+const search=document.querySelector('[data-draft-search][data-army="0"][data-round="0"]');search.value=player.name;search.dispatchEvent(new window.Event('input',{bubbles:true}));assert.match($('draft-player-0-0').textContent,new RegExp(player.name));assert.equal($('draft-player-0-0').value,player.name);const backup=vm.runInContext('JSON.stringify(validateBackup(collectBackup()))',context);assert.equal(JSON.parse(backup).format,'japan-sports-desk-backup');assert.equal(JSON.parse(backup).drafts[String(data.year)].picks.hr[0][0].name,player.name);console.log('PASS: real player search and portable JSON structure.');
