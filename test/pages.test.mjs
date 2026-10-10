@@ -14,7 +14,7 @@ test('static export works from a GitHub project subdirectory',async()=>{
     const script=await readFile(join(output,'app.js'),'utf8');
     assert.match(html,/href="\.\/style.css"/);assert.match(html,/src="\.\/app.js"/);
     assert.doesNotMatch(html,/(?:src|href)="\/(?!\/)/);
-    assert.match(script,/fetch\('\.\/data\/sports.json'/);
+    assert.match(script,/fetch\('\.\/data\/sports\.json\?t='\+Date\.now\(\)/);
     assert.deepEqual(JSON.parse(await readFile(join(output,'data/sports.json'),'utf8')),data);
     assert.equal(await readFile(join(output,'.nojekyll'),'utf8'),'');
     const failed={ok:false};
