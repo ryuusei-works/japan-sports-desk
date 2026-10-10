@@ -18,7 +18,7 @@ test('static export works from a GitHub project subdirectory',async()=>{
     assert.deepEqual(JSON.parse(await readFile(join(output,'data/sports.json'),'utf8')),data);
     assert.equal(await readFile(join(output,'.nojekyll'),'utf8'),'');
     const failed={ok:false};
-    await assert.rejects(buildPages({output,collect:async()=>({...data,standings:failed,baseballGames:failed,footballGames:failed,fifa:failed})}),/All official sources/);
+    await assert.rejects(buildPages({output,collect:async()=>({...data,standings:failed,baseballGames:failed,footballGames:failed,fifa:failed})}),/All public sources/);
     assert.deepEqual(JSON.parse(await readFile(join(output,'data/sports.json'),'utf8')),data,'Complete source failure must preserve the previous snapshot');
   }finally{await rm(output,{recursive:true,force:true});}
 });

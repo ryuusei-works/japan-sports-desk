@@ -33,16 +33,17 @@ export async function buildPages({collect=collectData,output=resolve('dist'),loa
   const data=await collect();
   const sources=[data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews,data.baseballResults,data.footballHistory].filter(Boolean),...Object.values(data.leaders).flatMap(v=>[v.c,v.p])];
   sources.push(...Object.values(data.draft?.clubs||{}).flatMap(club=>[club.bat,club.pit]));
+  sources.push(...[data.daily?.nationalNews,data.footballRivals].filter(Boolean),...Object.values(data.daily?.locations||{}).flatMap(location=>[location.weather,location.news]),...(data.footballRivals?.ok?data.footballRivals.data.countries.map(country=>country.games):[]));
   const successful=sources.filter(s=>s.ok).length;
   // Do not replace the existing deployment if every official source is unavailable.
-  if(successful===0)throw new Error('All official sources unavailable; keeping the previous deployment.');
-  if(successful!==sources.length)console.warn(`Official sources: ${successful}/${sources.length}. Missing sections will display an error.`);
+  if(successful===0)throw new Error('All public sources unavailable; keeping the previous deployment.');
+  if(successful!==sources.length)console.warn(`Public sources: ${successful}/${sources.length}. Missing sections will display an error.`);
   data.previous=comparisonSnapshot(previous,data);
   data.draftHistory=captureDraftHistory(previous,data);
   await mkdir(resolve(output,'data'),{recursive:true});
   for(const file of ['index.html','app.js','style.css','.nojekyll'])await copyFile(resolve('public',file),resolve(output,file));
   await writeFile(resolve(output,'data/sports.json'),JSON.stringify(data));
-  console.log(`Static site built. Official sources: ${successful}/${sources.length}. Fetched: ${data.generatedAt}`);
+  console.log(`Static site built. Public sources: ${successful}/${sources.length}. Fetched: ${data.generatedAt}`);
   return data;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
