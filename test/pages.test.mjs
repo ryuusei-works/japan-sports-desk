@@ -52,5 +52,9 @@ test('monthly archive keeps one latest complete snapshot per Tokyo month and pre
 });
 
 test('published history download failure stops a build rather than silently dropping archived seasons',async t=>{
- const {readPublishedPrevious}=await import('../scripts/build-pages.mjs');const mock=t.mock.method(globalThis,'fetch',async()=>({ok:false,status:404}));await assert.rejects(readPublishedPrevious(),/keeping previous deployment/);mock.mock.mockImplementation(async()=>{throw Error('network');});await assert.rejects(readPublishedPrevious(),/keeping previous deployment/);
+ const {readPublishedPrevious}=await import('../scripts/build-pages.mjs');const mock=t.mock.method(globalThis,'fetch',async()=>({ok:false,status:503}));await assert.rejects(readPublishedPrevious(),/keeping previous deployment/);mock.mock.mockImplementation(async()=>{throw Error('network');});await assert.rejects(readPublishedPrevious(),/keeping previous deployment/);
+});
+
+test('repository rename retains archived seasons when both Pages URLs return 404',async t=>{
+ const {readPublishedPrevious}=await import('../scripts/build-pages.mjs');const urls=[];t.mock.method(globalThis,'fetch',async url=>{urls.push(url);return {ok:false,status:404};});const prior=await readPublishedPrevious();assert.equal(prior.draftHistory.version,1);assert.ok(prior.draftHistory.seasons['2026']);assert.equal(urls.length,2);assert.match(urls[0],/hibi-note/);
 });
