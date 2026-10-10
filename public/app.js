@@ -343,7 +343,7 @@ $('backup-apply').addEventListener('click',()=>{if(!pendingBackup)return;try{app
 function paintStatus(){if(!data)return;
  const failed=[...Object.values(data.draft?.clubs||{}).flatMap(club=>[club.bat,club.pit]),data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews,data.baseballResults,data.footballHistory,data.daily?.nationalNews,data.daily?.locations?.[preferences.region]?.weather,data.daily?.locations?.[preferences.region]?.news,data.daily?.alerts?.[preferences.region],data.footballRivals,...(data.footballRivals?.ok?data.footballRivals.data.countries.map(c=>c.games):[])].filter(Boolean),...Object.values(data.leaders).flatMap(x=>[x.c,x.p])].filter(s=>!s.ok).length;
  const stale=Date.now()-Date.parse(data.generatedAt)>7200000;
- $('status').classList.toggle('error',!!failed||stale);$('status').textContent=failed?`一部のデータを取得できませんでした（${failed}件）。各欄の出典をご確認ください。`:stale?'最終取得から2時間以上経過しています。自動更新が遅れています。「データを再確認」で公開済みの最新データを読み直せます。':'公開情報から取得 · 30分ごとに自動更新予定 · 試合速報ではありません';
+ $('status').classList.toggle('error',!!failed||stale);$('status').textContent=failed?`一部のデータを取得できませんでした（${failed}件）。各欄の出典をご確認ください。`:stale?'最終取得から2時間以上経過しています。自動更新が遅れています。「公開データを再読込」で公開済みの最新データを読み直せます。':'公開情報から取得 · 30分ごとに自動更新予定 · 試合速報ではありません';
 }
 let loading=false,dataInitialized=false;async function refresh(){
  if(loading)return;loading=true;$('refresh').disabled=true;$('status').textContent='公開済みのデータを確認しています…';
@@ -355,7 +355,7 @@ let loading=false,dataInitialized=false;async function refresh(){
  paintStandings();paintGames();paintLeaders();paintFootball();paintFifa();paintCalendar();paintHome();paintNews();paintTimes();paintComparisonTime();paintRecentResults();paintOpponentProfile();paintDraft();paintDaily();paintRivals();
  paintStatus();const generated=new Date(data.generatedAt);
  $('fetched-at').textContent='データ生成日時：'+generated.toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})+'（日本時間）';$('data-updated').textContent='データ取得・集計完了：'+generated.toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})+'（日本時間）';
- }catch{$('status').classList.add('error');$('status').textContent=data?'更新に失敗しました。表示中は前回取得のデータです。出典をご確認ください。':'データを取得できませんでした。「データを再確認」から再試行してください。';if(!data)for(const id of ['standings','baseball-games','leaders','football-game','fifa-summary','roadmap','today-games','week-games','baseball-results','football-result','opponent-profile'])$(id).innerHTML=empty();}
+ }catch{$('status').classList.add('error');$('status').textContent=data?'更新に失敗しました。表示中は前回取得のデータです。出典をご確認ください。':'データを取得できませんでした。「公開データを再読込」から再試行してください。';if(!data)for(const id of ['standings','baseball-games','leaders','football-game','fifa-summary','roadmap','today-games','week-games','baseball-results','football-result','opponent-profile'])$(id).innerHTML=empty();}
  finally{loading=false;$('refresh').disabled=false;}
 }
 $('categories').addEventListener('click',e=>{const b=e.target.closest('[data-category]');if(!b)return;category=b.dataset.category;$('categories').querySelectorAll('button').forEach(el=>{el.classList.toggle('selected',el===b);el.setAttribute('aria-pressed',String(el===b));});paintLeaders();});
