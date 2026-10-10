@@ -28,7 +28,7 @@ export function captureDraftHistory(previous,current){
  if(!old||Date.parse(old.generatedAt)<Date.parse(current.generatedAt)){season.months[month]={generatedAt:current.generatedAt,seasonComplete:!!current.draft.seasonComplete,rows:[...players.values()]};if(month>=season.latestMonth)season.latestMonth=month;}
  return history;
 }
-export async function buildPages({collect=collectData,output=resolve('dist'),loadPrevious=readPrevious}={}){
+export async function buildPages({collect=collectData,output=resolve('dist'),loadPrevious=readPrevious,runtime=process.env.VERCEL==='1'}={}){
   const previous=await loadPrevious(output);
   const data=await collect();
   const sources=[data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews,data.baseballResults,data.footballHistory].filter(Boolean),...Object.values(data.leaders).flatMap(v=>[v.c,v.p])];
@@ -43,10 +43,11 @@ export async function buildPages({collect=collectData,output=resolve('dist'),loa
   data.draftHistory=captureDraftHistory(previous,data);
   await mkdir(resolve(output,'data'),{recursive:true});
   for(const file of ['index.html','app.js','style.css','.nojekyll'])await copyFile(resolve('public',file),resolve(output,file));
+  if(runtime){const file=resolve(output,'index.html');await writeFile(file,(await readFile(file,'utf8')).replace('<html lang="ja"','<html data-data-api="./api/data" lang="ja"'));}
   await writeFile(resolve(output,'data/sports.json'),JSON.stringify(data));
   console.log(`Static site built. Public sources: ${successful}/${sources.length}. Fetched: ${data.generatedAt}`);
   return data;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
-  await buildPages({loadPrevious:process.env.GITHUB_ACTIONS==='true'?readPublishedPrevious:readPrevious});
+  await buildPages({loadPrevious:process.env.GITHUB_ACTIONS==='true'||process.env.VERCEL==='1'?readPublishedPrevious:readPrevious});
 }

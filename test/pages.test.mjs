@@ -30,6 +30,11 @@ test('comparison snapshot keeps only one prior generation and never crosses seas
  const snapshot=comparisonSnapshot(prior,current);assert.equal(snapshot.generatedAt,prior.generatedAt);assert.equal(snapshot.previous,undefined);assert.equal(snapshot.footballGames,undefined);assert.equal(comparisonSnapshot(prior,{...current,year:2027}),null);assert.equal(comparisonSnapshot(prior,{...current,generatedAt:prior.generatedAt}),null);assert.equal(comparisonSnapshot({...prior,generatedAt:'bad'},current),null);
 });
 
+test('Vercel build enables the same-origin API without changing static Pages output',async()=>{
+ const output=await mkdtemp(join(tmpdir(),'sports-vercel-'));const ok={ok:true};
+ try{await buildPages({output,runtime:true,collect:async()=>({year:2026,generatedAt:'2026-10-10T00:00:00Z',standings:ok,baseballGames:ok,footballGames:ok,fifa:ok,leaders:{}})});assert.match(await readFile(join(output,'index.html'),'utf8'),/data-data-api="\.\/api\/data"/);const config=JSON.parse(await readFile('vercel.json','utf8'));assert.equal(config.framework,null);assert.equal(config.functions['api/data.js'].includeFiles,'dist/data/sports.json');assert.equal(config.crons,undefined);}finally{await rm(output,{recursive:true,force:true});}
+});
+
 test('static builds preserve the preceding published snapshot without growing history',async()=>{
  const output=await mkdtemp(join(tmpdir(),'sports-history-'));const ok={ok:true};const make=hour=>({year:2026,standings:ok,baseballGames:ok,footballGames:ok,fifa:ok,leaders:{},generatedAt:`2026-10-10T0${hour}:00:00Z`});
  try{

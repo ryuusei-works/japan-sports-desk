@@ -13,6 +13,7 @@ const fixture=()=>({year:2027,today:'2027-01-01',generatedAt:'2026-12-31T16:00:0
  leaders:Object.fromEntries(categories.map(c=>[c.id,{c:ok(c.id==='era'?[{name:'投手A',team:'神',league:'c',value:'1.80'},{name:'投手B',team:'巨',league:'c',value:'2.13'}]:[{name:'選手A',team:'神',league:'c',value:c.id==='avg'?'.320':'39'},{name:'選手B',team:'巨',league:'c',value:c.id==='avg'?'.297':'20'}]),p:ok([{name:'選手C',team:'西',league:'p',value:c.id==='era'?'1.60':c.id==='avg'?'.330':'45'}])}]))});
 async function setup(options={}){
  const requests=[];const data=fixture();options.configure?.(data);const {window,document}=parseHTML(await readFile('public/index.html','utf8'));
+ if(options.runtime)document.documentElement.dataset.dataApi='./api/data';
  window.location={hash:''};window.history={pushState(_state,_title,url){window.location.hash=url;}};const storage=new Map(Object.entries(options.saved||{}));window.localStorage={getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k),key:i=>[...storage.keys()][i],get length(){return storage.size;}};
  Object.defineProperty(window.HTMLSelectElement.prototype,'options',{configurable:true,get(){return this.querySelectorAll('option');}});
  Object.defineProperty(window.HTMLSelectElement.prototype,'value',{configurable:true,get(){return this._value??this.querySelector('option')?.getAttribute('value')??'';},set(v){this._value=v;}});
@@ -21,6 +22,12 @@ async function setup(options={}){
  vm.runInContext(await readFile('public/app.js','utf8'),context);await new Promise(r=>setTimeout(r,0));
  return {data,context,document,window,storage,requests,$:id=>document.getElementById(id),change:(id,value)=>{const el=document.getElementById(id);el.value=value;el.dispatchEvent(new window.Event('change'));}};
 }
+test('Vercel reads cached data automatically and collects only on a deliberate click, retaining data on failure',async()=>{
+ let failing=false;const calls=[];const sample=fixture();const ui=await setup({runtime:true,globals:{fetch:async(url,init)=>{calls.push({url,init});return {ok:!failing,json:async()=>sample,headers:new Headers({'X-Data-Update':'cached'})};}}});
+ assert.equal(ui.$('refresh').textContent,'↻ 最新情報に更新');assert.equal(ui.$('data-update-link').hidden,true);assert.equal(calls[0].init.method,'GET');assert.match(ui.$('live-update-guide').textContent,/ログインは不要/);
+ ui.$('refresh').click();await new Promise(resolve=>setTimeout(resolve,0));assert.equal(calls.at(-1).init.method,'POST');assert.equal(calls.at(-1).init.headers['X-Daily-Desk-Refresh'],'1');assert.match(ui.$('status').textContent,/5分以内/);
+ const previous=ui.$('standings').innerHTML;failing=true;ui.$('refresh').click();await new Promise(resolve=>setTimeout(resolve,0));assert.equal(ui.$('standings').innerHTML,previous);assert.match(ui.$('status').textContent,/前回取得/);assert.equal(ui.$('refresh').disabled,false);
+});
 test('home uses Tokyo today and Monday to Sunday across the year boundary',async()=>{
  const {$}=await setup();assert.equal($('today-count').textContent,'1試合');assert.match($('today-games').textContent,/巨人 × DeNA/);assert.equal($('week-count').textContent,'4試合');assert.match($('week-games').textContent,/終了/);assert.match($('week-games').textContent,/中止・延期/);assert.match($('week-games').textContent,/対戦国/);assert.match($('week-range').textContent,/12月28日/);assert.match($('week-range').textContent,/1月3日/);assert.doesNotMatch($('week-games').textContent,/巨人 × 阪神/);
 });

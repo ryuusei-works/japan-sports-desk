@@ -343,21 +343,26 @@ $('backup-apply').addEventListener('click',()=>{if(!pendingBackup)return;try{app
 function paintStatus(){if(!data)return;
  const failed=[...Object.values(data.draft?.clubs||{}).flatMap(club=>[club.bat,club.pit]),data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews,data.baseballResults,data.footballHistory,data.daily?.nationalNews,data.daily?.locations?.[preferences.region]?.weather,data.daily?.locations?.[preferences.region]?.news,data.daily?.alerts?.[preferences.region],data.footballRivals,...(data.footballRivals?.ok?data.footballRivals.data.countries.map(c=>c.games):[])].filter(Boolean),...Object.values(data.leaders).flatMap(x=>[x.c,x.p])].filter(s=>!s.ok).length;
  const stale=Date.now()-Date.parse(data.generatedAt)>7200000;
- $('status').classList.toggle('error',!!failed||stale);$('status').textContent=failed?`一部のデータを取得できませんでした（${failed}件）。各欄の出典をご確認ください。`:stale?'最終取得から2時間以上経過しています。自動更新が遅れています。「公開データを再読込」で公開済みの最新データを読み直せます。':'公開情報から取得 · 30分ごとに自動更新予定 · 試合速報ではありません';
+ $('status').classList.toggle('error',!!failed||stale);$('status').textContent=failed?`一部のデータを取得できませんでした（${failed}件）。各欄の出典をご確認ください。`:stale?'最終取得から2時間以上経過しています。自動更新が遅れています。画面上部の更新ボタンをご利用ください。':(dataApi?'公開情報から取得 · 更新ボタンで再取得（5分間隔） · 試合速報ではありません':'公開情報から取得 · 30分ごとに自動更新予定 · 試合速報ではありません');
 }
-let loading=false,dataInitialized=false;async function refresh(){
- if(loading)return;loading=true;$('refresh').disabled=true;$('status').textContent='公開済みのデータを確認しています…';
- try{const response=await fetch('./data/sports.json?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error('データ取得エラー');data=await response.json();
+const dataApi=document.documentElement.dataset.dataApi;
+if(dataApi){$('refresh').textContent='↻ 最新情報に更新';$('data-update-link').hidden=true;$('data-update-link').nextElementSibling.textContent='ログイン不要 · 再取得は5分間隔';
+ const guide=$('live-update-guide');if(guide)guide.innerHTML='<span class="guide-number">04</span><h3>最新データを取得する</h3><p>「最新情報に更新」で公開元からデータを再取得します。GitHubへのログインは不要です。取得には数十秒〜3分程度かかる場合があります。</p><ul><li>5分以内の再操作は、取得済みデータを表示します。</li><li>他の利用者の更新中は、前回データを表示します。少し待って再度押してください。</li><li>失敗時は前回の表示を残します。一部の取得失敗は各欄に表示します。</li><li>公式サイト自体が未更新の場合、成績や試合結果は変わりません。速報ではありません。</li></ul><span class="guide-tip">設定や指名は端末内に保存します。サイト移行時は、旧サイトの設定からJSONを保存して、新サイトで読み込んでください。</span>';
+ const source=$('sources-update-note');if(source)source.textContent='気象庁・Yahoo!ニュース・NPB・JFA・FIFA・ESPNの無料公開情報を利用します。「最新情報に更新」で公開元から再取得します（5分間隔）。15分ごとの画面再読込では取得済みデータを確認します。バックアップ用の定期収集はGitHubで30分ごとの予定です。自動更新は遅延する場合があり、試合速報ではありません。';
+}
+let loading=false,dataInitialized=false;async function refresh(force=false){
+ if(loading)return;loading=true;$('refresh').disabled=true;$('status').textContent=force&&dataApi?'最新情報を取得・集計しています…（数十秒〜3分程度）':'公開済みのデータを確認しています…';
+ try{const response=dataApi?await fetch(dataApi,{method:force?'POST':'GET',headers:force?{'X-Daily-Desk-Refresh':'1'}:{},cache:'no-store',signal:AbortSignal.timeout(force?235000:30000)}):await fetch('./data/sports.json?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error('データ取得エラー');const next=await response.json();if(!Number.isInteger(next.year)||!Number.isFinite(Date.parse(next.generatedAt))||!Array.isArray(next.categories)||!next.leaders||!next.standings)throw Error('データ形式エラー');data=next;
  $('today').textContent=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).format(new Date());
  $('season').textContent=data.year;
  const teamBefore=$('team').value;$('team').innerHTML='<option value="all">すべてのチーム</option>'+Object.entries(scheduleTeams).map(([key,t])=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');$('team').value=[...$('team').options].some(o=>o.value===teamBefore)?teamBefore:'all';if(!dataInitialized){applyFavorite();dataInitialized=true;}
  $('categories').innerHTML=data.categories.map(c=>`<button data-category="${c.id}" class="${category===c.id?'selected':''}" aria-pressed="${category===c.id}">${esc(c.label)}</button>`).join('');
  paintStandings();paintGames();paintLeaders();paintFootball();paintFifa();paintCalendar();paintHome();paintNews();paintTimes();paintComparisonTime();paintRecentResults();paintOpponentProfile();paintDraft();paintDaily();paintRivals();
- paintStatus();const generated=new Date(data.generatedAt);
+ paintStatus();const updateState=response.headers?.get('X-Data-Update');if(force&&updateState==='cached')$('status').textContent+=' · 5分以内のため取得済みデータを表示しています。';if(force&&updateState==='busy')$('status').textContent+=' · 他の更新が進行中です。少し待って再操作してください。';const generated=new Date(data.generatedAt);
  $('fetched-at').textContent='データ生成日時：'+generated.toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})+'（日本時間）';$('data-updated').textContent='データ取得・集計完了：'+generated.toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})+'（日本時間）';
  }catch{$('status').classList.add('error');$('status').textContent=data?'更新に失敗しました。表示中は前回取得のデータです。出典をご確認ください。':'データを取得できませんでした。「公開データを再読込」から再試行してください。';if(!data)for(const id of ['standings','baseball-games','leaders','football-game','fifa-summary','roadmap','today-games','week-games','baseball-results','football-result','opponent-profile'])$(id).innerHTML=empty();}
  finally{loading=false;$('refresh').disabled=false;}
 }
 $('categories').addEventListener('click',e=>{const b=e.target.closest('[data-category]');if(!b)return;category=b.dataset.category;$('categories').querySelectorAll('button').forEach(el=>{el.classList.toggle('selected',el===b);el.setAttribute('aria-pressed',String(el===b));});paintLeaders();});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
-$('refresh').addEventListener('click',refresh);setInterval(()=>{if(!document.hidden)refresh();},900000);refresh();
+$('refresh').addEventListener('click',()=>refresh(true));setInterval(()=>{if(!document.hidden)refresh();},900000);refresh();

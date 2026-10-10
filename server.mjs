@@ -1,5 +1,6 @@
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
+import liveData from './api/data.js';
 const files={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/style.css':'style.css','/data/sports.json':'data/sports.json'};
 const types={'html':'text/html; charset=utf-8','js':'text/javascript; charset=utf-8','css':'text/css; charset=utf-8','json':'application/json; charset=utf-8'};
 const base=(process.env.BASE_PATH||'').replace(/\/$/,'');
@@ -10,11 +11,14 @@ http.createServer(async(req,res)=>{
  const path=base&&pathname.startsWith(base+'/')?pathname.slice(base.length):base?'':pathname;
  res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
  res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'");
+ if(path==='/api/data'){
+  try{const headers=new Headers(req.headers),request=new Request('http://'+req.headers.host+req.url,{method:req.method,headers,...(req.method==='POST'&&Number(req.headers['content-length'])>0?{body:'invalid'}:{})});const response=await liveData.fetch(request);res.writeHead(response.status,Object.fromEntries(response.headers));res.end(await response.text());}catch{res.writeHead(503);res.end();}return;
+ }
  if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405);return res.end();}
  try{
   if(!files[path]){res.writeHead(404);res.end('Not found');return;}
   res.setHeader('Content-Type',types[files[path].split('.').pop()]);
   res.setHeader('Cache-Control','no-cache');
-  const body=await readFile(new URL('./dist/'+files[path],import.meta.url));res.end(req.method==='HEAD'?undefined:body);
+  let body=await readFile(new URL('./dist/'+files[path],import.meta.url));if(files[path]==='index.html')body=body.toString().replace('<html lang="ja"','<html data-data-api="./api/data" lang="ja"');res.end(req.method==='HEAD'?undefined:body);
  }catch{res.writeHead(503);res.end('一時的に利用できません');}
 }).listen(Number(process.env.PORT)||3000,'127.0.0.1',()=>console.log(`Local: http://localhost:${Number(process.env.PORT)||3000}${base}/`));
