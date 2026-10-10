@@ -22,6 +22,11 @@ test('cross-origin, unsupported methods, bodies and arbitrary URLs never start c
  assert.equal((await handle(new Request('https://desk.example/api/data',{method:'POST',headers:{Origin:'https://desk.example','X-Daily-Desk-Refresh':'1'},body:'user data'}))).status,400);
  assert.equal(calls,0);
 });
+test('empty streamed POSTs from the Vercel adapter can refresh without accepting actual content',async()=>{
+ let calls=0;const handle=createLiveData({cache:memoryCache(),loadBaseline:async()=>before,collect:async()=>{calls++;return after();}});
+ const empty=new Request('https://desk.example/api/data',{method:'POST',headers:{Origin:'https://desk.example','X-Daily-Desk-Refresh':'1'},duplex:'half',body:new ReadableStream({start(controller){controller.close();}})});
+ assert.equal((await handle(empty)).status,200);assert.equal(calls,1);
+});
 test('all-source failure preserves the snapshot and cache outage blocks new collection',async()=>{
  const cache=memoryCache();let fail=false,calls=0,clock=1000000;
  const handle=createLiveData({cache,loadBaseline:async()=>before,now:()=>clock,collect:async()=>{calls++;return fail?{year:2026,generatedAt:'2026-10-10T02:00:00Z',standings:{ok:false},leaders:{}}:after();}});
