@@ -33,6 +33,7 @@ export async function buildPages({collect=collectData,output=resolve('dist'),loa
   const data=await collect();
   const sources=[data.standings,data.baseballGames,data.footballGames,data.fifa,...[data.baseballNews,data.footballNews,data.baseballResults,data.footballHistory].filter(Boolean),...Object.values(data.leaders).flatMap(v=>[v.c,v.p])];
   sources.push(...Object.values(data.draft?.clubs||{}).flatMap(club=>[club.bat,club.pit]));
+  sources.push(...Object.values(data.daily?.alerts||{}));
   sources.push(...[data.daily?.nationalNews,data.footballRivals].filter(Boolean),...Object.values(data.daily?.locations||{}).flatMap(location=>[location.weather,location.news]),...(data.footballRivals?.ok?data.footballRivals.data.countries.map(country=>country.games):[]));
   const successful=sources.filter(s=>s.ok).length;
   // Do not replace the existing deployment if every official source is unavailable.
